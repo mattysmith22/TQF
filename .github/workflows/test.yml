@@ -1,0 +1,13 @@
+on: [push]
+name: test
+jobs:
+  runhaskell:
+    name: Run unit ter
+    runs-on: ubuntu-latest # or macOS-latest, or windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: haskell/actions/setup@v1
+      - run: stack install alex
+      - run: stack install happy
+      - run: stack build
+      - run: stack test

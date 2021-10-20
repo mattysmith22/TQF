@@ -1,0 +1,11 @@
+module MBS.TestModule where
+
+import A.Module --All of "A.Module"'s contents are imported directly so you can use them as "xyz".
+import qualified Another.Module -- All of "Another.Module"'s contents are imported but you need to use "Another.Module.xyz"
+import qualified Last.Module as Rename -- All of "Last.Module"'s contents are imported but you need to use "Rename.xyz"
+
+
+--Working on compiling functions only first, then classes come after
+String function(String arg) {
+    return "test";
+}
