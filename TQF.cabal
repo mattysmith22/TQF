@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b558f7aaee4a4f5e7782b6697c00f64308909c49697cdb958f1edf54d4ff8f1f
+-- hash: 93b9ee426f343b564989ea5698f3b36a91bfdd7b310f90592dddc38e31071039
 
 name:           TQF
 version:        0.1.0.0
@@ -29,16 +29,17 @@ library
   exposed-modules:
       TQF.AST
       TQF.Lexer
+      TQF.ModuleResolver
       TQF.Parser
   other-modules:
       Paths_TQF
   hs-source-dirs:
       src
   build-depends:
-      alex
-    , array
+      array
     , base >=4.7 && <5
-    , happy
+    , containers
+    , mtl
     , split
   default-language: Haskell2010
 
@@ -51,10 +52,10 @@ executable TQF-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       TQF
-    , alex
     , array
     , base >=4.7 && <5
-    , happy
+    , containers
+    , mtl
     , pretty-simple
     , split
   default-language: Haskell2010
@@ -64,6 +65,7 @@ test-suite TQF-test
   main-is: Spec.hs
   other-modules:
       TQF.LexerSpec
+      TQF.ModuleResolverSpec
       TQF.ParserSpec
       Paths_TQF
   hs-source-dirs:
@@ -71,10 +73,10 @@ test-suite TQF-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       TQF
-    , alex
     , array
     , base >=4.7 && <5
-    , happy
+    , containers
     , hspec
+    , mtl
     , split
   default-language: Haskell2010

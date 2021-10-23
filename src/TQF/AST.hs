@@ -127,13 +127,13 @@ data Var = Var ResolveableModule VarName
 type ResolveableModule = [TypeName]
 
 newtype TypeName = TypeName {unTypeName:: String}
-    deriving Eq
+    deriving (Eq, Ord)
 
 instance Show TypeName where
   show (TypeName x) = show x
 
 newtype VarName = VarName {unVarName:: String}
-    deriving Eq
+    deriving (Eq, Ord)
 
 instance Show VarName where
   show (VarName x) = show x
