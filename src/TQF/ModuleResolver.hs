@@ -9,13 +9,12 @@ import TQF.AST (VarName(VarName), TypeName (TypeName))
 
 data Namespace = Namespace {
     path :: ResolveableModule,
-    lowerIdent :: Map.Map VarName Declaration,
+    lowerIdent :: Map.Map VarName [Declaration],
     upperIdent :: Map.Map TypeName (Either Namespace TypeName)
 }
     deriving (Eq, Show)
 
 data ResolverError = NamespaceTypeClash Type
-    | LIdentClash ResolveableModule VarName
     | UIdentClash ResolveableModule TypeName
     deriving (Eq, Show)
 
@@ -50,9 +49,7 @@ currentModule = path <$> get
 addLowerIdent :: VarName -> Declaration -> NamespaceTransformation ()
 addLowerIdent ident val = do
     state <- get 
-    let (mVal, state') = insertLookup ident val (lowerIdent state)
-    curPath <- currentModule
-    when (isJust mVal) $ lift $ Left $ LIdentClash curPath ident
+    let state' = Map.insertWith (<>) ident [val] (lowerIdent state)
     put state{lowerIdent = state'}
     return ()
 
