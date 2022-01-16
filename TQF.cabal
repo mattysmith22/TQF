@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 93b9ee426f343b564989ea5698f3b36a91bfdd7b310f90592dddc38e31071039
+-- hash: 1060022d61cb821c7367d24beafd4aa6f8b0dfa2e19f2ee1368c5ec74d317df4
 
 name:           TQF
 version:        0.1.0.0
@@ -27,10 +27,14 @@ source-repository head
 
 library
   exposed-modules:
+      Data.String.CaseInsensitive
+      SQF.Commands
       TQF.AST
       TQF.Lexer
       TQF.ModuleResolver
       TQF.Parser
+      TQF.ToSQF.Type
+      TQF.TypeChecker
   other-modules:
       Paths_TQF
   hs-source-dirs:
@@ -39,6 +43,7 @@ library
       array
     , base >=4.7 && <5
     , containers
+    , extra
     , mtl
     , split
   default-language: Haskell2010
@@ -55,6 +60,7 @@ executable TQF-exe
     , array
     , base >=4.7 && <5
     , containers
+    , extra
     , mtl
     , pretty-simple
     , split
@@ -67,6 +73,7 @@ test-suite TQF-test
       TQF.LexerSpec
       TQF.ModuleResolverSpec
       TQF.ParserSpec
+      TQF.TypeCheckerSpec
       Paths_TQF
   hs-source-dirs:
       test
@@ -76,6 +83,7 @@ test-suite TQF-test
     , array
     , base >=4.7 && <5
     , containers
+    , extra
     , hspec
     , mtl
     , split

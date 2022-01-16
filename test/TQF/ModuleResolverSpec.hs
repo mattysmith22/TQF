@@ -82,10 +82,10 @@ addModuleSpec = do
             (NamespaceTypeClash $ Type [] (u "Test"))
     where
 
-        decl1 = Function [QualifierExtern] (l "func1") (typeVal [] "Void") [] [] (CodeBlock [])
-        decl1alt = Function [] (l "func1") (typeVal [] "Void") [] [(typeVal [] "Num", l "arg")] (CodeBlock [])
-        decl2 = Function [] (l "func2") (typeVal [] "String") [] [] (CodeBlock [])
-        decl3 = Function [] (l "func3") (typeVal [] "String") [] [(typeVal [] "Num", l "arg")] (CodeBlock [])
+        decl1 = FunctionDecl [QualifierExtern] (l "func1") (typeVal [] "Void") [] [] (CodeBlock [])
+        decl1alt = FunctionDecl [] (l "func1") (typeVal [] "Void") [] [(typeVal [] "Num", l "arg")] (CodeBlock [])
+        decl2 = FunctionDecl [] (l "func2") (typeVal [] "String") [] [] (CodeBlock [])
+        decl3 = FunctionDecl [] (l "func3") (typeVal [] "String") [] [(typeVal [] "Num", l "arg")] (CodeBlock [])
 
 
         shouldResolve statement ast input expectedOutput = runNamespaceTransformation (addModule statement ast) input `shouldBe` Right expectedOutput

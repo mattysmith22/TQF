@@ -51,7 +51,7 @@ importSpec = do
 declarationSpec = do
   it "Should parse a function declaration" $ do
     "String functionName(Void input) {}"
-      `shouldParse` [ Function []
+      `shouldParse` [ FunctionDecl []
                                (l "functionName")
                                (Type [] (u "String"))
                                []
@@ -60,7 +60,7 @@ declarationSpec = do
                     ]
   it "Should parse a function declaration with namespaced types" $ do
     "NS.String functionName(NS.Void input) {}"
-      `shouldParse` [ Function []
+      `shouldParse` [ FunctionDecl []
                                (l "functionName")
                                (Type [u "NS"] (u "String"))
                                []
@@ -69,7 +69,7 @@ declarationSpec = do
                     ]
   it "Should parse a function declaration with closures" $ do
     "String functionName[Num closure](Void input) {}"
-      `shouldParse` [ Function []
+      `shouldParse` [ FunctionDecl []
                                (l "functionName")
                                (Type [] (u "String"))
                                [(Type [] (u "Num"), l "closure")]
@@ -78,7 +78,7 @@ declarationSpec = do
                     ]
   it "Should parse a function declaration with multiple arguments" $ do
     "String functionName(Void input, Num input2) {}"
-      `shouldParse` [ Function []
+      `shouldParse` [ FunctionDecl []
                                (l "functionName")
                                (Type [] (u "String"))
                                []
@@ -87,13 +87,13 @@ declarationSpec = do
                     ]
   it "Should parse multiple function declarations"
     $             "String functionName(Void input) {} Num functionName2(Object input2) {}"
-    `shouldParse` [ Function []
+    `shouldParse` [ FunctionDecl []
                              (l "functionName")
                              (Type [] (u "String"))
                              []
                              [(Type [] (u "Void"), l "input")]
                              (CodeBlock [])
-                  , Function []
+                  , FunctionDecl []
                              (l "functionName2")
                              (Type [] (u "Num"))
                              []
@@ -105,7 +105,7 @@ declarationSpec = do
     `shouldBe` Right (Module [u "Test"] [] ast)
 
 statementSpec = do
-  describe "Function call" $ do
+  describe "FunctionDecl call" $ do
     it "Should parse a normal function call"
       $             "func(1,\"test\");"
       `shouldParse` [FunctionCall (Var [] (l "func")) [NumLiteral "1", StringLiteral "\"test\""]]
@@ -178,7 +178,7 @@ statementSpec = do
       `shouldBe` Right
                    (Module [u "Test"]
                            []
-                           [Function [] (l "func") (Type [] (u "Void")) [] [] (CodeBlock ast)]
+                           [FunctionDecl [] (l "func") (Type [] (u "Void")) [] [] (CodeBlock ast)]
                    )
 
 expressionSpec = do
@@ -227,7 +227,7 @@ expressionSpec = do
       "1>2" `shouldParse` BinaryOperator GreaterOp (NumLiteral "1") (NumLiteral "2")
       "1>=2" `shouldParse` BinaryOperator GreaterEqualOp (NumLiteral "1") (NumLiteral "2")
       "1<=2" `shouldParse` BinaryOperator LessEqualOp (NumLiteral "1") (NumLiteral "2")
-  describe "Function calls" $ do
+  describe "FunctionDecl calls" $ do
     it "Should parse a function call" $ "func(1, 2)" `shouldParse` FuncCall
       (varVal [] "func")
       [NumLiteral "1", NumLiteral "2"]
@@ -271,7 +271,7 @@ expressionSpec = do
                    (Module
                      [u "Test"]
                      []
-                     [ Function []
+                     [ FunctionDecl []
                                 (l "func")
                                 (Type [] (u "Void"))
                                 []

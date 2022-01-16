@@ -1,5 +1,7 @@
 module TQF.AST where
 
+import           Data.List.NonEmpty
+
 data Module = Module
   { moduleName         :: ResolveableModule
   , moduleImports      :: [ImportStatement]
@@ -14,62 +16,34 @@ data ImportStatement = ImportStatement
   }
   deriving (Show, Eq)
 
-data Declaration = Function
+data DeclarationType = DeclTypeFunc | DeclTypeVar
+
+declToType :: Declaration -> DeclarationType
+declToType FunctionDecl{} = DeclTypeFunc
+declToType VariableDecl{} = DeclTypeVar
+
+data Declaration = FunctionDecl
   { functionQualifiers    :: [FunctionQualifier]
   , functionName          :: VarName
   , functionType          :: Type
   , functionCaptureGroups :: [(Type, VarName)]
   , functionArguments     :: [(Type, VarName)]
   , functionContent       :: Statement
+  } | VariableDecl
+  { variableType :: Type,
+    variableName :: VarName
   }
   deriving (Show, Eq)
 
 data FunctionQualifier = QualifierExtern
   deriving (Show, Eq)
-{-
-    | Class {
-        classType:: StorageType,
-        classStorage:: StorageType,
-        classMethods:: [ClassMethod],
-        classMembers:: [ClassMember]
-    }
-    | Struct {
-        structType:: StorageType,
-        structStorage:: StorageType,
-        structMembers:: [StructMember]
-    }
-
-data ClassMethod = ClassMethod {
-    classMethodAccess:: Access,
-    classMethodExtern:: Bool,
-    classMethodName:: VarName,
-    classMethodArgs:: [(Type, VarName)],
-    classMethodContent:: Statement
-}
-    deriving (Show, Eq)
-
-data ClassMember = ClassMember {
-    classMemberAccess:: Access,
-    classMemberExtern:: Bool,
-    classMemberName:: VarName,
-    classMemberDefaultValue:: Maybe Expr
-}
-    deriving (Show, Eq)
-
-data StructMember = StructMember {
-    structMemberExtern:: Bool,
-    structMemberName:: VarName,
-    structMemberDefaultValue:: Maybe Expr
-}
-    deriving (Show, Eq)
--}
 
 data Statement =
     CodeBlock [Statement]
     | VariableDeclaration {
-        variableDeclarationType:: Type,
-        variableDeclarationName:: VarName,
-        variableDeclarationValue:: Maybe Expr
+        varDeclType:: Type,
+        varDeclName:: VarName,
+        varDeclValue:: Maybe Expr
     }
     | FunctionCall {
         functionCallName:: Var,
@@ -111,12 +85,6 @@ data UnaryOperator = NotOp | NegOp
     deriving (Show, Eq)
 
 data BinaryOperator = AndOp | OrOp | AddOp | SubOp | DivOp | MulOp | ModOp | EqOp | NotEqOp | LessOp | GreaterOp | LessEqualOp | GreaterEqualOp
-    deriving (Show, Eq)
-
-data Access = Private | Protected | Public
-    deriving (Show, Eq)
-
-data StorageType = StorageArray | StorageHashtable | StorageType
     deriving (Show, Eq)
 
 data Type = Type ResolveableModule TypeName

@@ -82,7 +82,7 @@ ImportRenaming : {- empty -} {Nothing}
 Declarations : {- empty -} {[]}
     | Declarations Declaration { $2 : $1 }
 
-Declaration : FunctionQualifiers uident lidentSimple FunctionDeclCapture '(' FunctionDeclArguments ')' CodeBlock { Function $1 $3 $2 $4 $6 (CodeBlock $8) }
+Declaration : FunctionQualifiers uident lidentSimple FunctionDeclCapture '(' FunctionDeclArguments ')' CodeBlock { FunctionDecl $1 $3 $2 $4 $6 (CodeBlock $8) }
 
 FunctionDeclCapture : {- empty -} { [] }
     | '[' FunctionDeclArguments ']' { $2 }
