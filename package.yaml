@@ -27,6 +27,10 @@ dependencies:
 - containers
 - extra
 
+build-tools:
+- alex
+- happy
+
 library:
   source-dirs: src
 

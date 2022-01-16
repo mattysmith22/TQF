@@ -21,8 +21,8 @@ addLocalVar :: VarName -> Type -> Namespace -> Namespace
 addLocalVar ident typ ns = ns {
   lowerIdent = Map.insert ident val $ lowerIdent ns 
 }
-    val = [VariableDecl typ ident]
   where
+    val = [VariableDecl typ ident]
 
 findLIdent :: Namespace -> Var -> Maybe [Declaration]
 findLIdent Namespace{..} (Var [] varName) = Map.lookup varName lowerIdent

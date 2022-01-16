@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1060022d61cb821c7367d24beafd4aa6f8b0dfa2e19f2ee1368c5ec74d317df4
+-- hash: 48921074f36ebc8c2e7f6ef759c17883e1e13bae20b4a3b0749801c1b683c08f
 
 name:           TQF
 version:        0.1.0.0
@@ -39,6 +39,9 @@ library
       Paths_TQF
   hs-source-dirs:
       src
+  build-tools:
+      alex
+    , happy
   build-depends:
       array
     , base >=4.7 && <5
@@ -55,6 +58,9 @@ executable TQF-exe
   hs-source-dirs:
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-tools:
+      alex
+    , happy
   build-depends:
       TQF
     , array
@@ -78,6 +84,9 @@ test-suite TQF-test
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-tools:
+      alex
+    , happy
   build-depends:
       TQF
     , array
