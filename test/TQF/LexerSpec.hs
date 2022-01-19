@@ -104,7 +104,7 @@ spec = do
     describe "Bool" $ do
       it "Should lex true" $ "true" `shouldLex` [TokenBool True]
       it "Should lex false" $ "false" `shouldLex` [TokenBool False]
-    describe "Number" $ do
+    describe "Num" $ do
       it "Should lex natural numbers" $ do
         "1" `shouldLex` [TokenNum "1"]
         "2342" `shouldLex` [TokenNum "2342"]

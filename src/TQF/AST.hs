@@ -17,6 +17,7 @@ data ImportStatement = ImportStatement
   deriving (Show, Eq)
 
 data DeclarationType = DeclTypeFunc | DeclTypeVar
+  deriving (Show, Eq)
 
 declToType :: Declaration -> DeclarationType
 declToType FunctionDecl{} = DeclTypeFunc

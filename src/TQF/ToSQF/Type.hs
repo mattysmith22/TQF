@@ -8,8 +8,9 @@ toSQFType (Type [] (TypeName name)) = toSQFTypeName name
 toSQFType _                         = Nothing
 
 toSQFTypeName :: String -> Maybe SQF.Type
-toSQFTypeName "Number" = Just SQF.Number
+toSQFTypeName "Num"    = Just SQF.Number
 toSQFTypeName "Object" = Just SQF.Object
+toSQFTypeName "Array"  = Just SQF.Array
 toSQFTypeName _        = Nothing
 
 fromSQFTypeName :: SQF.Type -> String

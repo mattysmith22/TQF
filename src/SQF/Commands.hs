@@ -53,4 +53,4 @@ instance ArgType Type where
   allCommands = [Command Object "getPos" Array]
 
 instance ArgType () where
-  allCommands = [Command () "allUnits" Array]
+  allCommands = [Command () "allUnits" Array, Command () "player" Object]

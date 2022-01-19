@@ -1,95 +1,114 @@
-module TQF.ModuleResolverSpec (spec) where
+module TQF.ModuleResolverSpec
+  ( spec
+  ) where
 
-import Test.Hspec
-import qualified Data.Map.Lazy as Map
-import TQF.AST
-import TQF.ModuleResolver
-
-data NamespaceLiteral = NamespaceLiteral [(String, [Declaration])] [(String, Either NamespaceLiteral TypeName)]
-
-namespace :: NamespaceLiteral -> Namespace
-namespace = namespace' []
-    where
-        namespace' path (NamespaceLiteral lowerIdents upperIdents) = Namespace path lowerIdents' upperIdents'
-            where
-                lowerIdents' = Map.fromList $ map (mapFst l) lowerIdents
-                upperIdents' = Map.fromList $ map upperIdentFunc upperIdents
-                upperIdentFunc (ident, Right typ) = (u ident, Right typ)
-                upperIdentFunc (ident, Left child) = (u ident, Left $ namespace' (path ++ [u ident]) child)
-
-mapFst :: (a -> c) -> (a, b) -> (c, b)
-mapFst f (a, b) = (f a, b)
-
-u :: String -> TypeName
-u = TypeName
-l :: String -> VarName
-l = VarName
-
-
-typeVal :: [String] -> String -> Type
-typeVal modules = Type (TypeName <$> modules) . TypeName
-varVal :: [String] -> String -> Var
-varVal modules = Var (TypeName <$> modules) . VarName
+import           Helpers
+import           TQF.AST
+import           TQF.ModuleResolver
+import           Test.Hspec
 
 addModuleSpec = do
-    it "Should add module declarations for a qualified import" $
-        shouldResolve
-            (ImportStatement [u "Test"] True Nothing)
-            (Module [u "Test"] [] [decl1, decl2])
-            initialNamespace
-            (namespace $ NamespaceLiteral [] [("Test", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [])])
-    it "Should handle nested imports" $
-        shouldResolve
-            (ImportStatement [u "Nested", u "Test"] True Nothing)
-            (Module [u "Nested", u "Test"] [] [decl1, decl2])
-            initialNamespace
-            (namespace $ NamespaceLiteral [] [("Nested", Left $ NamespaceLiteral [] [("Test", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [])])])
-    it "Should add module declarations to the root namespace as well if unqualified" $
-        shouldResolve
-            (ImportStatement [u "Test"] False Nothing)
-            (Module [u "Test"] [] [decl1, decl2])
-            initialNamespace
-            (namespace $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [("Test", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [])])
-    it "Should be able to handle multiple nested declarations (Module and Module.Nested)" $ do
-        -- Module - func1, func2. Module.Nested - func3
-        shouldResolve
-            (ImportStatement [u "Module"] True Nothing)
-            (Module [u "Module"] [] [decl1, decl2])
-            (namespace $ NamespaceLiteral [] [("Module", Left $ NamespaceLiteral [] [("Nested", Left $ NamespaceLiteral [("func3", [decl3])] [])])])
-            (namespace $ NamespaceLiteral [] [("Module", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [("Nested", Left $ NamespaceLiteral [("func3", [decl3])] [])])])
-        shouldResolve
-            (ImportStatement [u "Module", u "Nested"] True Nothing)
-            (Module [u "Module", u "Nested"] [] [decl3])
-            (namespace $ NamespaceLiteral [] [("Module", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [])])
-            (namespace $ NamespaceLiteral [] [("Module", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [("Nested", Left $ NamespaceLiteral [("func3", [decl3])] [])])])
-    it "Should be able to handle renaming imports" $
-        shouldResolve
-            (ImportStatement [u "Module"] True (Just [u "Renamed"]))
-            (Module [u "Module"] [] [decl1, decl2])
-            initialNamespace
-            (namespace $ NamespaceLiteral [] [("Renamed", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [])])
-    it "Should merge two lidents under the same namespce" $
-        shouldResolve
-            (ImportStatement [u "Test"] True Nothing)
-            (Module [u "Test"] [] [decl1])
-            (namespace $ NamespaceLiteral [] [("Test", Left $ NamespaceLiteral [("func1", [decl1alt])] [])])
-            (namespace $ NamespaceLiteral [] [("Test", Left $ NamespaceLiteral [("func1", [decl1, decl1alt])] [])])
-    it "Should error when a type and namespace clash" $
-        shouldError
-            (ImportStatement [u "Test"] True Nothing)
-            (Module [u "Test"] [] [decl1, decl2])
-            (namespace $ NamespaceLiteral [] [("Test", Right $ u "TypeName")])
-            (NamespaceTypeClash $ Type [] (u "Test"))
-    where
+  it "Should add module declarations for a qualified import" $ shouldResolve
+    (ImportStatement [u "Test"] True Nothing)
+    (Module [u "Test"] [] [decl1, decl2])
+    initialNamespace
+    (buildNamespace $ NamespaceLiteral
+      []
+      [("Test", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [])]
+    )
+  it "Should handle nested imports" $ shouldResolve
+    (ImportStatement [u "Nested", u "Test"] True Nothing)
+    (Module [u "Nested", u "Test"] [] [decl1, decl2])
+    initialNamespace
+    (buildNamespace $ NamespaceLiteral
+      []
+      [ ( "Nested"
+        , Left $ NamespaceLiteral
+          []
+          [("Test", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [])]
+        )
+      ]
+    )
+  it "Should add module declarations to the root buildNamespace as well if unqualified"
+    $ shouldResolve
+        (ImportStatement [u "Test"] False Nothing)
+        (Module [u "Test"] [] [decl1, decl2])
+        initialNamespace
+        (buildNamespace $ NamespaceLiteral
+          [("func1", [decl1]), ("func2", [decl2])]
+          [("Test", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [])]
+        )
+  it "Should be able to handle multiple nested declarations (Module and Module.Nested)" $ do
+      -- Module - func1, func2. Module.Nested - func3
+    shouldResolve
+      (ImportStatement [u "Module"] True Nothing)
+      (Module [u "Module"] [] [decl1, decl2])
+      (buildNamespace $ NamespaceLiteral
+        []
+        [ ( "Module"
+          , Left $ NamespaceLiteral [] [("Nested", Left $ NamespaceLiteral [("func3", [decl3])] [])]
+          )
+        ]
+      )
+      (buildNamespace $ NamespaceLiteral
+        []
+        [ ( "Module"
+          , Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])]
+                                    [("Nested", Left $ NamespaceLiteral [("func3", [decl3])] [])]
+          )
+        ]
+      )
+    shouldResolve
+      (ImportStatement [u "Module", u "Nested"] True Nothing)
+      (Module [u "Module", u "Nested"] [] [decl3])
+      (buildNamespace $ NamespaceLiteral
+        []
+        [("Module", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [])]
+      )
+      (buildNamespace $ NamespaceLiteral
+        []
+        [ ( "Module"
+          , Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])]
+                                    [("Nested", Left $ NamespaceLiteral [("func3", [decl3])] [])]
+          )
+        ]
+      )
+  it "Should be able to handle renaming imports" $ shouldResolve
+    (ImportStatement [u "Module"] True (Just [u "Renamed"]))
+    (Module [u "Module"] [] [decl1, decl2])
+    initialNamespace
+    (buildNamespace $ NamespaceLiteral
+      []
+      [("Renamed", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [])]
+    )
+  it "Should merge two lidents under the same namespce" $ shouldResolve
+    (ImportStatement [u "Test"] True Nothing)
+    (Module [u "Test"] [] [decl1])
+    ( buildNamespace
+    $ NamespaceLiteral [] [("Test", Left $ NamespaceLiteral [("func1", [decl1alt])] [])]
+    )
+    ( buildNamespace
+    $ NamespaceLiteral [] [("Test", Left $ NamespaceLiteral [("func1", [decl1, decl1alt])] [])]
+    )
+  it "Should error when a type and buildNamespace clash" $ shouldError
+    (ImportStatement [u "Test"] True Nothing)
+    (Module [u "Test"] [] [decl1, decl2])
+    (buildNamespace $ NamespaceLiteral [] [("Test", Right $ u "TypeName")])
+    (NamespaceTypeClash $ Type [] (u "Test"))
+ where
 
-        decl1 = FunctionDecl [QualifierExtern] (l "func1") (typeVal [] "Void") [] [] (CodeBlock [])
-        decl1alt = FunctionDecl [] (l "func1") (typeVal [] "Void") [] [(typeVal [] "Num", l "arg")] (CodeBlock [])
-        decl2 = FunctionDecl [] (l "func2") (typeVal [] "String") [] [] (CodeBlock [])
-        decl3 = FunctionDecl [] (l "func3") (typeVal [] "String") [] [(typeVal [] "Num", l "arg")] (CodeBlock [])
+  decl1 = FunctionDecl [QualifierExtern] (l "func1") (typN' [] "Void") [] [] (CodeBlock [])
+  decl1alt =
+    FunctionDecl [] (l "func1") (typN' [] "Void") [] [(typN' [] "Num", l "arg")] (CodeBlock [])
+  decl2 = FunctionDecl [] (l "func2") (typN' [] "String") [] [] (CodeBlock [])
+  decl3 =
+    FunctionDecl [] (l "func3") (typN' [] "String") [] [(typN' [] "Num", l "arg")] (CodeBlock [])
 
 
-        shouldResolve statement ast input expectedOutput = runNamespaceTransformation (addModule statement ast) input `shouldBe` Right expectedOutput
-        shouldError statement ast input expectedError = runNamespaceTransformation (addModule statement ast) input `shouldBe` Left expectedError
+  shouldResolve statement ast input expectedOutput =
+    runNamespaceTransformation (addModule statement ast) input `shouldBe` Right expectedOutput
+  shouldError statement ast input expectedError =
+    runNamespaceTransformation (addModule statement ast) input `shouldBe` Left expectedError
 
 spec = do
-    describe "addModule" addModuleSpec
+  describe "addModule" addModuleSpec

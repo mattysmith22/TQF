@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 48921074f36ebc8c2e7f6ef759c17883e1e13bae20b4a3b0749801c1b683c08f
+-- hash: 694f9df478c0690e09dcbf535f9ca799181c7d0bd30456f631c8c28d41a34cb5
 
 name:           TQF
 version:        0.1.0.0
@@ -76,6 +76,7 @@ test-suite TQF-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Helpers
       TQF.LexerSpec
       TQF.ModuleResolverSpec
       TQF.ParserSpec

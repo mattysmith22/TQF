@@ -2,8 +2,10 @@
 module TQF.ModuleResolver where
 
 import           Control.Monad
-import Control.Monad.State.Lazy
-    ( MonadState(put, get), MonadTrans(lift), StateT(runStateT) )
+import           Control.Monad.State.Lazy       ( MonadState(get, put)
+                                                , MonadTrans(lift)
+                                                , StateT(runStateT)
+                                                )
 import qualified Data.Map.Lazy                 as Map
 import           Data.Maybe                     ( fromMaybe
                                                 , isJust
@@ -18,18 +20,14 @@ data Namespace = Namespace
   deriving (Eq, Show)
 
 addLocalVar :: VarName -> Type -> Namespace -> Namespace
-addLocalVar ident typ ns = ns {
-  lowerIdent = Map.insert ident val $ lowerIdent ns 
-}
-  where
-    val = [VariableDecl typ ident]
+addLocalVar ident typ ns = ns { lowerIdent = Map.insert ident val $ lowerIdent ns }
+  where val = [VariableDecl typ ident]
 
 findLIdent :: Namespace -> Var -> Maybe [Declaration]
-findLIdent Namespace{..} (Var [] varName) = Map.lookup varName lowerIdent
-findLIdent n@Namespace{..} (Var (i:is) varName) = Map.lookup i upperIdent >>=
-  \case
-    (Left ns) -> findLIdent n (Var is varName)
-    (Right ns) -> Nothing
+findLIdent Namespace {..}   (Var []       varName) = Map.lookup varName lowerIdent
+findLIdent n@Namespace {..} (Var (i : is) varName) = Map.lookup i upperIdent >>= \case
+  (Left  ns) -> findLIdent ns (Var is varName)
+  (Right ns) -> Nothing
 
 data ResolverError = NamespaceTypeClash Type
     | UIdentClash ResolveableModule TypeName

@@ -2,6 +2,7 @@ module TQF.ParserSpec
   ( spec
   ) where
 
+import           Helpers
 import           TQF.AST
 import           TQF.Lexer
 import           TQF.Parser
@@ -9,17 +10,6 @@ import           Test.Hspec
 
 shouldParse' :: String -> Module -> Expectation
 shouldParse' input ast = parse (alexScanTokens input) `shouldBe` Right ast
-
-u :: String -> TypeName
-u = TypeName
-l :: String -> VarName
-l = VarName
-
-
-typeVal :: [String] -> String -> Type
-typeVal modules = Type (TypeName <$> modules) . TypeName
-varVal :: [String] -> String -> Var
-varVal modules = Var (TypeName <$> modules) . VarName
 
 moduleSpec = do
   it "Should parse a module heading"
@@ -52,53 +42,54 @@ declarationSpec = do
   it "Should parse a function declaration" $ do
     "String functionName(Void input) {}"
       `shouldParse` [ FunctionDecl []
-                               (l "functionName")
-                               (Type [] (u "String"))
-                               []
-                               [(Type [] (u "Void"), l "input")]
-                               (CodeBlock [])
+                                   (l "functionName")
+                                   (Type [] (u "String"))
+                                   []
+                                   [(Type [] (u "Void"), l "input")]
+                                   (CodeBlock [])
                     ]
   it "Should parse a function declaration with namespaced types" $ do
     "NS.String functionName(NS.Void input) {}"
       `shouldParse` [ FunctionDecl []
-                               (l "functionName")
-                               (Type [u "NS"] (u "String"))
-                               []
-                               [(Type [u "NS"] (u "Void"), l "input")]
-                               (CodeBlock [])
+                                   (l "functionName")
+                                   (Type [u "NS"] (u "String"))
+                                   []
+                                   [(Type [u "NS"] (u "Void"), l "input")]
+                                   (CodeBlock [])
                     ]
   it "Should parse a function declaration with closures" $ do
     "String functionName[Num closure](Void input) {}"
       `shouldParse` [ FunctionDecl []
-                               (l "functionName")
-                               (Type [] (u "String"))
-                               [(Type [] (u "Num"), l "closure")]
-                               [(Type [] (u "Void"), l "input")]
-                               (CodeBlock [])
+                                   (l "functionName")
+                                   (Type [] (u "String"))
+                                   [(Type [] (u "Num"), l "closure")]
+                                   [(Type [] (u "Void"), l "input")]
+                                   (CodeBlock [])
                     ]
   it "Should parse a function declaration with multiple arguments" $ do
     "String functionName(Void input, Num input2) {}"
-      `shouldParse` [ FunctionDecl []
-                               (l "functionName")
-                               (Type [] (u "String"))
-                               []
-                               [(Type [] (u "Void"), l "input"), (Type [] (u "Num"), l "input2")]
-                               (CodeBlock [])
+      `shouldParse` [ FunctionDecl
+                        []
+                        (l "functionName")
+                        (Type [] (u "String"))
+                        []
+                        [(Type [] (u "Void"), l "input"), (Type [] (u "Num"), l "input2")]
+                        (CodeBlock [])
                     ]
   it "Should parse multiple function declarations"
     $             "String functionName(Void input) {} Num functionName2(Object input2) {}"
     `shouldParse` [ FunctionDecl []
-                             (l "functionName")
-                             (Type [] (u "String"))
-                             []
-                             [(Type [] (u "Void"), l "input")]
-                             (CodeBlock [])
+                                 (l "functionName")
+                                 (Type [] (u "String"))
+                                 []
+                                 [(Type [] (u "Void"), l "input")]
+                                 (CodeBlock [])
                   , FunctionDecl []
-                             (l "functionName2")
-                             (Type [] (u "Num"))
-                             []
-                             [(Type [] (u "Object"), l "input2")]
-                             (CodeBlock [])
+                                 (l "functionName2")
+                                 (Type [] (u "Num"))
+                                 []
+                                 [(Type [] (u "Object"), l "input2")]
+                                 (CodeBlock [])
                   ]
  where
   shouldParse inp ast = parse (alexScanTokens "module Test where" ++ alexScanTokens inp)
@@ -131,14 +122,14 @@ statementSpec = do
   describe "Variable Declarations" $ do
     it "Should parse a variable declaration without an assignment"
       $             "Type varName;"
-      `shouldParse` [VariableDeclaration (typeVal [] "Type") (l "varName") Nothing]
+      `shouldParse` [VariableDeclaration (typN' [] "Type") (l "varName") Nothing]
     it "Should parse a variable declaration with an assignment"
       $             "Type varName = 1;"
-      `shouldParse` [VariableDeclaration (typeVal [] "Type") (l "varName") (Just $ NumLiteral "1")]
+      `shouldParse` [VariableDeclaration (typN' [] "Type") (l "varName") (Just $ NumLiteral "1")]
   describe "Assignment"
     $             it "Should parse an assignment"
     $             "varName = 1;"
-    `shouldParse` [Assignment (varVal [] "varName") (NumLiteral "1")]
+    `shouldParse` [Assignment (varN' [] "varName") (NumLiteral "1")]
   describe "If Statement" $ do
     it "Should parse a normal if statement"
       $             "if (true) {return 1;}"
@@ -184,10 +175,10 @@ statementSpec = do
 expressionSpec = do
   describe "Variables" $ do
     it "Should parse a normal variable reading" $ "variable" `shouldParse` Variable
-      (varVal [] "variable")
+      (varN' [] "variable")
     it "Should parse a variable reading and Namespaces"
       $             "Namespace.variable"
-      `shouldParse` Variable (varVal ["Namespace"] "variable")
+      `shouldParse` Variable (varN' ["Namespace"] "variable")
   describe "Literals" $ do
     it "Should parse bool literals" $ do
       "true" `shouldParse` BoolLiteral True
@@ -229,7 +220,7 @@ expressionSpec = do
       "1<=2" `shouldParse` BinaryOperator LessEqualOp (NumLiteral "1") (NumLiteral "2")
   describe "FunctionDecl calls" $ do
     it "Should parse a function call" $ "func(1, 2)" `shouldParse` FuncCall
-      (varVal [] "func")
+      (varN' [] "func")
       [NumLiteral "1", NumLiteral "2"]
   describe "Array construction" $ do
     it "Should parse an empty array" $ "[]" `shouldParse` Array []
@@ -245,7 +236,7 @@ expressionSpec = do
       "command"
       [NumLiteral "1", NumLiteral "2"]
   describe "Type cast" $ it "Should parse a type cast" $ "(NS.Type)1" `shouldParse` Cast
-    (typeVal ["NS"] "Type")
+    (typN' ["NS"] "Type")
     (NumLiteral "1")
   describe "Precedence" $ do
     it "Precedence test 1" $ "1 + 2 * 3" `shouldParse` BinaryOperator
@@ -272,11 +263,11 @@ expressionSpec = do
                      [u "Test"]
                      []
                      [ FunctionDecl []
-                                (l "func")
-                                (Type [] (u "Void"))
-                                []
-                                []
-                                (CodeBlock [Return $ Just ast])
+                                    (l "func")
+                                    (Type [] (u "Void"))
+                                    []
+                                    []
+                                    (CodeBlock [Return $ Just ast])
                      ]
                    )
 
