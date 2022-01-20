@@ -39,7 +39,7 @@ addModuleSpec = do
           [("Test", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [])]
         )
   it "Should be able to handle multiple nested declarations (Module and Module.Nested)" $ do
-      -- Module - func1, func2. Module.Nested - func3
+      -- Module - func1, func2. Module.Nested - func3
     shouldResolve
       (ImportStatement [u "Module"] True Nothing)
       (Module [u "Module"] [] [decl1, decl2])

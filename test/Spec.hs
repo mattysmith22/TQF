@@ -1,2 +1,3 @@
--- file test/Spec.hs
+-- file test/Spec.hs
+
 {-# OPTIONS_GHC -F -pgmF hspec-discover #-}

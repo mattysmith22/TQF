@@ -14,7 +14,12 @@ toSQFTypeName "Array"  = Just SQF.Array
 toSQFTypeName _        = Nothing
 
 fromSQFTypeName :: SQF.Type -> String
-fromSQFTypeName = show
+fromSQFTypeName SQF.Number = "Num"
+fromSQFTypeName SQF.Object = "Object"
+fromSQFTypeName SQF.Bool   = "Bool"
+fromSQFTypeName SQF.Array  = "Array"
+fromSQFTypeName SQF.Nil    = "Void"
+fromSQFTypeName _          = undefined
 
 fromSQFType :: SQF.Type -> Type
 fromSQFType = Type [] . TypeName . fromSQFTypeName

@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns, RecordWildCards #-}
+{-# LANGUAGE RecordWildCards #-}
 module TQF.TypeChecker
   ( TypeCheckError(..)
   , TypeCheck
@@ -6,6 +6,11 @@ module TQF.TypeChecker
   , typeCheckExpr
   , typeCheckStatement
   , typeCheckDeclaration
+  , numType
+  , boolType
+  , stringType
+  , voidType
+  , arrayType
   ) where
 
 import           Control.Applicative
@@ -13,6 +18,7 @@ import           Control.Monad.Except
 import           Data.Foldable
 import           Data.List.Extra
 import qualified Data.Map                      as Map
+import           Data.Maybe
 import           Data.Void
 import           Debug.Trace
 import qualified SQF.Commands                  as SQFComm
@@ -21,7 +27,7 @@ import           TQF.ModuleResolver
 import           TQF.ToSQF.Type
 import           Text.ParserCombinators.ReadP   ( look )
 
-data TypeCheckError = TypeMismatch (Maybe Type) (Maybe Type)
+data TypeCheckError = TypeMismatch Type Type
     | NotPresent Var
     | IncorrectDeclarationType Var DeclarationType DeclarationType
     | MismatchedArgCount Int Int
@@ -70,11 +76,8 @@ getFunctionTypeFromNamespace namespace var argTypes = case findLIdent namespace 
   p VariableDecl {..} = False
 
 ensure :: Type -> Type -> TypeCheck ()
-ensure checkType actualType = ensure' (Just checkType) (Just actualType)
-
-ensure' :: Maybe Type -> Maybe Type -> TypeCheck ()
-ensure' checkType actualType | checkType == actualType = return ()
-                             | otherwise = throwError $ TypeMismatch checkType actualType
+ensure checkType actualType | checkType == actualType = return ()
+                            | otherwise = throwError $ TypeMismatch checkType actualType
 
 convertToSQFType :: Type -> TypeCheck SQFComm.Type
 convertToSQFType typ = case toSQFType typ of
@@ -146,7 +149,7 @@ typeCheckExpr lookup (Cast       typ expr) = do
   typeCheckExpr lookup expr
   return typ
 
-typeCheckStatement :: Namespace -> Maybe Type -> Statement -> TypeCheck Namespace
+typeCheckStatement :: Namespace -> Type -> Statement -> TypeCheck Namespace
 typeCheckStatement ns retType (CodeBlock stmts) = foldM (`typeCheckStatement` retType) ns stmts
 typeCheckStatement ns retType (VariableDeclaration declType declName mDeclValue) = do
   case mDeclValue of
@@ -178,15 +181,14 @@ typeCheckStatement lookup retType (DoWhile cond stmt) = do
   ensure boolType condType
   typeCheckStatement lookup retType stmt
 typeCheckStatement lookup retType (Return mExpr) = do
-  mCondType <- mapM (typeCheckExpr lookup) mExpr
-  ensure' retType mCondType
+  condType <- fromMaybe voidType <$> mapM (typeCheckExpr lookup) mExpr
+  ensure retType condType
   return lookup
 
 typeCheckDeclaration :: Namespace -> Declaration -> TypeCheck ()
 typeCheckDeclaration _  VariableDecl{}    = return ()
 typeCheckDeclaration ns FunctionDecl {..} = do
   let f ns (typ, ident) = addLocalVar ident typ ns
-  let ns'                    = foldl f ns functionArguments
-  let expectedFunctionReturn = if functionType == voidType then Nothing else Just functionType
-  typeCheckStatement ns' expectedFunctionReturn functionContent
+  let ns' = foldl f ns functionArguments
+  typeCheckStatement ns' functionType functionContent
   return ()
