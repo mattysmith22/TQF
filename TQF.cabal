@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6009aa2e233bbd1c4414e7b0e8dd48e6bdbb83a85ad48bd0bd694e3b052981d1
+-- hash: 506f0487f1ba067b529e481608f4f4cdf5624d48f2247d85739c4061d5a1319d
 
 name:           TQF
 version:        0.1.0.0
@@ -34,6 +34,7 @@ library
       TQF.ModuleResolver
       TQF.Parser
       TQF.ToSQF.Type
+      TQF.Type
       TQF.TypeChecker
       TQF.VNI
   other-modules:
@@ -84,6 +85,7 @@ test-suite TQF-test
       TQF.ModuleResolverSpec
       TQF.ParserSpec
       TQF.TypeCheckerSpec
+      TQF.TypeSpec
       TQF.VNISpec
       Paths_TQF
   hs-source-dirs:
