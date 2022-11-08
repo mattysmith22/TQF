@@ -27,6 +27,7 @@ dependencies:
 - containers
 - extra
 - bimap
+- QuickCheck
 
 build-tools:
 - alex
@@ -58,4 +59,3 @@ tests:
     dependencies:
     - TQF
     - hspec
-    - QuickCheck

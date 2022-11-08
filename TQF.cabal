@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 506f0487f1ba067b529e481608f4f4cdf5624d48f2247d85739c4061d5a1319d
+-- hash: 60032b98fd6ad0de94d578dd00d2bd975db0d1fceee878a079e4b7c7b012bef5
 
 name:           TQF
 version:        0.1.0.0
@@ -45,7 +45,8 @@ library
       alex
     , happy
   build-depends:
-      array
+      QuickCheck
+    , array
     , base >=4.7 && <5
     , bimap
     , containers
@@ -65,7 +66,8 @@ executable TQF-exe
       alex
     , happy
   build-depends:
-      TQF
+      QuickCheck
+    , TQF
     , array
     , base >=4.7 && <5
     , bimap
