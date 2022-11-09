@@ -63,3 +63,11 @@ spec = do
                 array top `isWithin` simpleType Array
             it "Should match an array as being within another array when the latter has a wider element type" $
                 array (simpleType String) `isWithin` array top
+        describe "Function types" $ do
+            it "Should match valid functions with the same argument count as being within" $
+                code [simpleType String, simpleType Array] (simpleType String) `isWithin` code [simpleType String, array top] top
+            it "Should define functions as being within if the wider function has more arguments than the smaller" $
+                code [simpleType String] (simpleType Number) `isWithin` code [simpleType String, simpleType Number] (simpleType Number)
+            it "Should define functions as being within if the wider function has less arguments than the smaller, and all the missing wider arguments support Nil" $
+                code [simpleType String, simpleType Nil] (simpleType Number) `isWithin` code [simpleType String] (simpleType Number)
+    

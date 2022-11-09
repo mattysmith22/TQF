@@ -14,10 +14,12 @@ module TQF.Type
     , constBool
     , tuple
     , array
+    , code
     ) where
 
 import Data.Functor.Identity ()
 import Data.Set (Set)
+import Data.Zip
 import qualified Data.Set as Set
 import Data.List.Extra
 import Test.QuickCheck
@@ -48,6 +50,7 @@ data BaseType
     | ConstType ConstType
     | ArrayType Type
     | TupleType [Type]
+    | CodeType [Type] Type
     deriving (Ord, Eq, Show)
 
 instance Arbitrary BaseType where
@@ -63,17 +66,20 @@ instance Within BaseType where
     SimpleType _ `isWithin` ConstType _ = False
     SimpleType _ `isWithin` ArrayType _ = False
     SimpleType _ `isWithin` TupleType _ = False
+    SimpleType _ `isWithin` CodeType _ _ = False
     
     ConstType s `isWithin` SimpleType l = typeOfConst s == l
     ConstType s `isWithin` ConstType l = s == l
     ConstType _ `isWithin` ArrayType _ = False
     ConstType _ `isWithin` TupleType _ = False
+    ConstType _ `isWithin` CodeType _ _ = False
 
     ArrayType _ `isWithin` SimpleType Array = True
     ArrayType _ `isWithin` SimpleType _ = False
     ArrayType _ `isWithin` ConstType _ = False
     ArrayType s `isWithin` ArrayType l = s `isWithin` l
     ArrayType _ `isWithin` TupleType _ = False
+    ArrayType _ `isWithin` CodeType _ _ = False
     
     TupleType _ `isWithin` SimpleType Array = True
     TupleType _ `isWithin` SimpleType _ = False
@@ -82,7 +88,15 @@ instance Within BaseType where
     TupleType [s] `isWithin` ArrayType l = isWithin s l
     TupleType _ `isWithin` ArrayType _ = False
     TupleType s `isWithin` TupleType l = length s <= length l && and (zipWith isWithin s l)
+    TupleType _ `isWithin` CodeType _ _ = False
 
+    CodeType _ _ `isWithin` SimpleType Code = True
+    CodeType _ _ `isWithin` SimpleType _ = False
+    CodeType _ _ `isWithin` ConstType _ = False
+    CodeType _ _ `isWithin` ArrayType _ = False
+    CodeType _ _ `isWithin` TupleType _ = False
+    CodeType sarg sret `isWithin` CodeType larg lret
+        = all (uncurry $ flip isWithin) (zipPadded top (simpleType Nil) sarg larg) && sret `isWithin` lret
 typeOfConst :: ConstType -> SimpleType
 typeOfConst (ConstNumber _) = Number
 typeOfConst (ConstString _) = String
@@ -97,7 +111,7 @@ instance Arbitrary ConstType where
         , ConstString <$> arbitrary
         , ConstBool <$> arbitrary
         ]
-data SimpleType = Number | String | Bool | Array
+data SimpleType = Number | String | Bool | Array | Code | Nil
     deriving (Ord, Eq, Show, Bounded, Enum)
 
 instance Semigroup Type where
@@ -131,3 +145,6 @@ tuple = Options . Set.singleton . TupleType
 
 array :: Type -> Type
 array = Options . Set.singleton . ArrayType
+
+code :: [Type] -> Type -> Type
+code args ret = Options $ Set.singleton $ CodeType args ret
