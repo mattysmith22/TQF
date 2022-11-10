@@ -15,10 +15,13 @@ module TQF.Type
     , tuple
     , array
     , code
+    , record
     ) where
 
 import Data.Functor.Identity ()
 import Data.Set (Set)
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Zip
 import qualified Data.Set as Set
 import Data.List.Extra
@@ -51,14 +54,15 @@ data BaseType
     | ArrayType Type
     | TupleType [Type]
     | CodeType [Type] Type
+    | RecordType (Map String Type)
     deriving (Ord, Eq, Show)
-
 instance Arbitrary BaseType where
     arbitrary = oneof
         [ SimpleType <$> elements [minBound..maxBound]
         , ConstType <$> arbitrary
         , ArrayType <$> arbitrary
         , TupleType <$> arbitrary
+        , RecordType <$> arbitrary
         ]
 
 instance Within BaseType where
@@ -67,12 +71,14 @@ instance Within BaseType where
     SimpleType _ `isWithin` ArrayType _ = False
     SimpleType _ `isWithin` TupleType _ = False
     SimpleType _ `isWithin` CodeType _ _ = False
+    SimpleType _ `isWithin` RecordType _ = False
     
     ConstType s `isWithin` SimpleType l = typeOfConst s == l
     ConstType s `isWithin` ConstType l = s == l
     ConstType _ `isWithin` ArrayType _ = False
     ConstType _ `isWithin` TupleType _ = False
     ConstType _ `isWithin` CodeType _ _ = False
+    ConstType _ `isWithin` RecordType _ = False
 
     ArrayType _ `isWithin` SimpleType Array = True
     ArrayType _ `isWithin` SimpleType _ = False
@@ -80,6 +86,7 @@ instance Within BaseType where
     ArrayType s `isWithin` ArrayType l = s `isWithin` l
     ArrayType _ `isWithin` TupleType _ = False
     ArrayType _ `isWithin` CodeType _ _ = False
+    ArrayType _ `isWithin` RecordType _ = False
     
     TupleType _ `isWithin` SimpleType Array = True
     TupleType _ `isWithin` SimpleType _ = False
@@ -89,6 +96,7 @@ instance Within BaseType where
     TupleType _ `isWithin` ArrayType _ = False
     TupleType s `isWithin` TupleType l = length s <= length l && and (zipWith isWithin s l)
     TupleType _ `isWithin` CodeType _ _ = False
+    TupleType _ `isWithin` RecordType _ = False
 
     CodeType _ _ `isWithin` SimpleType Code = True
     CodeType _ _ `isWithin` SimpleType _ = False
@@ -97,6 +105,20 @@ instance Within BaseType where
     CodeType _ _ `isWithin` TupleType _ = False
     CodeType sarg sret `isWithin` CodeType larg lret
         = all (uncurry $ flip isWithin) (zipPadded top (simpleType Nil) sarg larg) && sret `isWithin` lret
+    CodeType _ _ `isWithin` RecordType _ = False
+
+    RecordType _ `isWithin` SimpleType HashMap = True
+    RecordType _ `isWithin` SimpleType _ = False
+    RecordType _ `isWithin` ConstType _ = False
+    RecordType _ `isWithin` ArrayType _ = False
+    RecordType _ `isWithin` TupleType _ = False
+    RecordType _ `isWithin` CodeType _ _ = False
+    RecordType s `isWithin` RecordType l =  s `isWithin` l
+
+instance Within a => Within (Map String a) where
+    s `isWithin` l = Map.null (l `Map.difference` s) -- The subtype must have an implementation of every field
+        && and (Map.intersectionWith isWithin s l) -- The subtypes implementation of each field must be a subtype itself
+
 typeOfConst :: ConstType -> SimpleType
 typeOfConst (ConstNumber _) = Number
 typeOfConst (ConstString _) = String
@@ -111,7 +133,7 @@ instance Arbitrary ConstType where
         , ConstString <$> arbitrary
         , ConstBool <$> arbitrary
         ]
-data SimpleType = Number | String | Bool | Array | Code | Nil
+data SimpleType = Number | String | Bool | Array | Code | Nil | HashMap
     deriving (Ord, Eq, Show, Bounded, Enum)
 
 instance Semigroup Type where
@@ -148,3 +170,6 @@ array = Options . Set.singleton . ArrayType
 
 code :: [Type] -> Type -> Type
 code args ret = Options $ Set.singleton $ CodeType args ret
+
+record :: Map String Type -> Type
+record = Options . Set.singleton . RecordType
