@@ -8,6 +8,7 @@ module TQF.Lexer
 import Prelude hiding (lex)
 import Control.Monad (liftM)
 import TQF.AST
+import qualified TQF.Type as Type
 import Data.List.Split
 }
 
@@ -34,17 +35,29 @@ tokens :-
   "import"	{ constToken TokenImport }
   "qualified"	{ constToken TokenQualified }
   "as"		{ constToken TokenAs }
-  "extern" 	{ constToken TokenExtern }
   "if"		{ constToken TokenIf }
   "else"		{ constToken TokenElse }
   "while"		{ constToken TokenWhile }
   "do"		{ constToken TokenDo }
   "return"	{ constToken TokenReturn }
+  "type" { constToken TokenType }
+  "function" { constToken TokenFunction }
+  "global" { constToken TokenGlobal}
+-- Types
+  "top" { constToken $ TokenTop }
+  "string" { constToken $ TokenSimpleType  Type.String}
+  "num" { constToken $ TokenSimpleType  Type.Number}
+  "array" { constToken $ TokenSimpleType  Type.Array}
+  "hashmap" { constToken $ TokenSimpleType  Type.HashMap}
+  "bool" { constToken $ TokenSimpleType  Type.Bool}
+  "code" { constToken $ TokenSimpleType  Type.Code}
+  "nil" { constToken $ TokenSimpleType  Type.Nil}
 -- Reserved Symbols
   "="		{ constToken TokenAssign }
 -- Groupings
   \(		{ constToken TokenOpenP }
   \)		{ constToken TokenCloseP }
+  "'("  { constToken TokenOpenPTuple }
   \[		{ constToken TokenOpenSquare }
   \]		{ constToken TokenCloseSquare }
   "{"		{ constToken TokenOpenBrace }
@@ -54,6 +67,13 @@ tokens :-
 -- Delimeters
   ";"		{ constToken TokenSemicolon }
   ","		{ constToken TokenComma }
+-- Literals
+  "true"								{ constToken (TokenBool True) }
+  "false"								{ constToken (TokenBool False) }
+  $digit+ { tok (TokenNum . read) }
+  $digit+\.$digit+ { tok (TokenNum . read) }
+  "0x"[0-9a-f]+						{ tok (TokenNum . read) }
+  \"@string*\" { tok (TokenString) }
 -- Operators
   "+"		{ constToken TokenAdd }
   "-"		{ constToken TokenSub }
@@ -67,17 +87,11 @@ tokens :-
   ">="	{ constToken TokenGe }
   "!="	{ constToken TokenNe }
   "!"		{ constToken TokenNot }
--- Literals
-  "true"								{ constToken (TokenBool True) }
-  "false"								{ constToken (TokenBool False) }
-  $digit+ { tok (TokenNum) }
-  $digit+\.$digit+ { tok (TokenNum) }
-  \.$digit+ { tok (TokenNum) }
-  "0x"[0-9a-f]+						{ tok (TokenNum) }
-  \"@string*\" { tok (TokenString) }
+  "|"   { constToken TokenPipe }
+  ":"   { constToken TokenColon }
 -- Identifiers
-  (@uident ".")* @lident 		{ tok (identTok TokenIdentLower Var VarName) }
-  (@uident ".")* @uident 		{ tok (identTok TokenIdentUpper Type TypeName) }
+  (@uident ".")* @lident 		{ tok (identTok TokenIdentLower LIdent VarName) }
+  (@uident ".")* @uident 		{ tok (identTok TokenIdentUpper UIdent TypeName) }
 {
 
 identTok :: (ident -> token) -> (ResolveableModule -> name -> ident) -> (String -> name) -> String -> token
@@ -93,14 +107,18 @@ data Token
   | TokenImport
   | TokenQualified
   | TokenAs
-  | TokenExtern
   | TokenIf
   | TokenElse
   | TokenWhile
   | TokenDo
   | TokenReturn
+  | TokenType
+  | TokenFunction
+  | TokenGlobal
   | TokenAssign
+  | TokenTop
   | TokenOpenP
+  | TokenOpenPTuple
   | TokenCloseP
   | TokenOpenSquare
   | TokenCloseSquare
@@ -110,6 +128,8 @@ data Token
   | TokenCloseArrow
   | TokenSemicolon
   | TokenComma
+  | TokenPipe
+  | TokenColon
   | TokenDot
   | TokenAdd
   | TokenSub
@@ -123,11 +143,12 @@ data Token
   | TokenGe
   | TokenNe
   | TokenNot
+  | TokenSimpleType Type.SimpleType
   | TokenBool Bool
-  | TokenNum String
+  | TokenNum Double
   | TokenString String
-  | TokenIdentLower Var
-  | TokenIdentUpper Type
+  | TokenIdentLower LIdent
+  | TokenIdentUpper UIdent
   | TokenEOF
   deriving ( Show, Eq )
 
@@ -141,14 +162,17 @@ unLex TokenWhere = "where"
 unLex TokenImport = "import"
 unLex TokenQualified = "qualified"
 unLex TokenAs = "as"
-unLex TokenExtern = "extern"
 unLex TokenIf = "if"
 unLex TokenElse = "else"
 unLex TokenWhile = "while"
 unLex TokenDo = "do"
 unLex TokenReturn = "return"
+unLex TokenType = "type"
+unLex TokenFunction = "function"
+unLex TokenGlobal = "global"
 unLex TokenAssign = "="
 unLex TokenOpenP = "("
+unLex TokenOpenPTuple = "'("
 unLex TokenCloseP = ")"
 unLex TokenOpenSquare = "["
 unLex TokenCloseSquare = "]"
@@ -170,13 +194,16 @@ unLex TokenEq = "=="
 unLex TokenLe = "<="
 unLex TokenGe = ">="
 unLex TokenNe = "!="
+unLex TokenColon = ":"
+unLex TokenPipe = "|"
 unLex TokenNot = "!"
 unLex (TokenBool True) = "true"
 unLex (TokenBool False) = "false"
-unLex (TokenNum x) = x
+unLex (TokenNum x) = show x
 unLex (TokenString x) = x
-unLex (TokenIdentLower (Var modules ident)) = unLexModules modules ++ unVarName ident
-unLex (TokenIdentUpper (Type modules ident)) = unLexModules modules ++ unTypeName ident
+unLex (TokenSimpleType x) = Type.simpleTypeToString x
+unLex (TokenIdentLower (LIdent modules ident)) = unLexModules modules ++ unVarName ident
+unLex (TokenIdentUpper (UIdent modules ident)) = unLexModules modules ++ unTypeName ident
 unLex TokenEOF = "<EOF>"
 
 unLexModules :: ResolveableModule -> String

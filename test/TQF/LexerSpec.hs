@@ -13,14 +13,14 @@ shouldNotLex :: String -> [Token] -> Expectation
 shouldNotLex input expectedTokens = alexScanTokens input `shouldNotBe` expectedTokens
 
 u :: String -> Token
-u = TokenIdentUpper . Type [] . TypeName
+u = TokenIdentUpper . UIdent [] . TypeName
 l :: String -> Token
-l = TokenIdentLower . Var [] . VarName
+l = TokenIdentLower . LIdent [] . VarName
 
 uNamespace :: [String] -> String -> Token
-uNamespace modules = TokenIdentUpper . Type (TypeName <$> modules) . TypeName
+uNamespace modules = TokenIdentUpper . UIdent (TypeName <$> modules) . TypeName
 lNamespace :: [String] -> String -> Token
-lNamespace modules = TokenIdentLower . Var (TypeName <$> modules) . VarName
+lNamespace modules = TokenIdentLower . LIdent (TypeName <$> modules) . VarName
 
 reservedWords =
   [ ("module"   , TokenModule)
@@ -28,7 +28,6 @@ reservedWords =
   , ("import"   , TokenImport)
   , ("qualified", TokenQualified)
   , ("as"       , TokenAs)
-  , ("extern"   , TokenExtern)
   , ("if"       , TokenIf)
   , ("else"     , TokenElse)
   , ("while"    , TokenWhile)
@@ -106,15 +105,15 @@ spec = do
       it "Should lex false" $ "false" `shouldLex` [TokenBool False]
     describe "Num" $ do
       it "Should lex natural numbers" $ do
-        "1" `shouldLex` [TokenNum "1"]
-        "2342" `shouldLex` [TokenNum "2342"]
-        "0" `shouldLex` [TokenNum "0"]
+        "1" `shouldLex` [TokenNum 1]
+        "2342" `shouldLex` [TokenNum 2342]
+        "0" `shouldLex` [TokenNum 0]
       it "Should lex negative numbers" $ do
-        "-2" `shouldLex` [TokenSub, TokenNum "2"]
+        "-2" `shouldLex` [TokenSub, TokenNum 2]
       it "Should lex decimal numbers" $ do
-        "2.4" `shouldLex` [TokenNum "2.4"]
+        "2.4" `shouldLex` [TokenNum 2.4]
       it "Should lex hex numbers" $ do
-        "0x24af" `shouldLex` [TokenNum "0x24af"]
+        "0x24af" `shouldLex` [TokenNum 9391]
     describe "String" $ do
       it "Should lex the empty string" $ "\"\"" `shouldLex` [TokenString "\"\""]
       it "Should lex a string with normal text inside"

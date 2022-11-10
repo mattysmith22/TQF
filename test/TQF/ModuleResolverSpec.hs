@@ -5,6 +5,7 @@ module TQF.ModuleResolverSpec
 import           Helpers
 import           TQF.AST
 import           TQF.ModuleResolver
+import           TQF.Type
 import           Test.Hspec
 
 addModuleSpec = do
@@ -39,7 +40,10 @@ addModuleSpec = do
           [("Test", Left $ NamespaceLiteral [("func1", [decl1]), ("func2", [decl2])] [])]
         )
   it "Should be able to handle multiple nested declarations (Module and Module.Nested)" $ do
-      -- Module - func1, func2. Module.Nested - func3
+      -- Module - func1, func2. Module.Nested - func3
+
+
+
     shouldResolve
       (ImportStatement [u "Module"] True Nothing)
       (Module [u "Module"] [] [decl1, decl2])
@@ -94,15 +98,15 @@ addModuleSpec = do
     (ImportStatement [u "Test"] True Nothing)
     (Module [u "Test"] [] [decl1, decl2])
     (buildNamespace $ NamespaceLiteral [] [("Test", Right $ u "TypeName")])
-    (NamespaceTypeClash $ Type [] (u "Test"))
+    (NamespaceTypeClash $ UIdent [] (u "Test"))
  where
 
-  decl1 = FunctionDecl [QualifierExtern] (l "func1") (typN' [] "Void") [] [] (CodeBlock [])
+  decl1 = FunctionDecl (l "func1") (simpleType Nil) [] (CodeBlock [])
   decl1alt =
-    FunctionDecl [] (l "func1") (typN' [] "Void") [] [(typN' [] "Num", l "arg")] (CodeBlock [])
-  decl2 = FunctionDecl [] (l "func2") (typN' [] "String") [] [] (CodeBlock [])
+    FunctionDecl (l "func1") (simpleType Nil) [(simpleType Number, l "arg")] (CodeBlock [])
+  decl2 = FunctionDecl (l "func2") (simpleType String) [] (CodeBlock [])
   decl3 =
-    FunctionDecl [] (l "func3") (typN' [] "String") [] [(typN' [] "Num", l "arg")] (CodeBlock [])
+    FunctionDecl (l "func3") (simpleType String) [(simpleType Number, l "arg")] (CodeBlock [])
 
 
   shouldResolve statement ast input expectedOutput =

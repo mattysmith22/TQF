@@ -1,5 +1,7 @@
 module TQF.AST where
 
+import TQF.Type
+
 import           Data.List.NonEmpty
 
 data Module = Module
@@ -24,34 +26,29 @@ declToType FunctionDecl{} = DeclTypeFunc
 declToType VariableDecl{} = DeclTypeVar
 
 data Declaration = FunctionDecl
-  { functionQualifiers    :: [FunctionQualifier]
-  , functionName          :: VarName
-  , functionType          :: Type
-  , functionCaptureGroups :: [(Type, VarName)]
-  , functionArguments     :: [(Type, VarName)]
+  { functionName          :: VarName
+  , functionType          :: ASTType
+  , functionArguments     :: [(ASTType, VarName)]
   , functionContent       :: Statement
   } | VariableDecl
-  { variableType :: Type,
+  { variableType :: ASTType,
     variableName :: VarName
   }
-  deriving (Show, Eq)
-
-data FunctionQualifier = QualifierExtern
   deriving (Show, Eq)
 
 data Statement =
     CodeBlock [Statement]
     | VariableDeclaration {
-        varDeclType:: Type,
+        varDeclType:: ASTType,
         varDeclName:: VarName,
         varDeclValue:: Maybe Expr
     }
     | FunctionCall {
-        functionCallName:: Var,
+        functionCallName:: LIdent,
         functionCallArgs:: [Expr]
     }
     | Assignment {
-        assignmentVariable:: Var,
+        assignmentVariable:: LIdent,
         assignmentValue:: Expr
     }
     | IfStatement {
@@ -72,14 +69,14 @@ data Statement =
 
 data Expr = UnaryOperator UnaryOperator Expr
  | BinaryOperator BinaryOperator Expr Expr
- | Variable Var
- | FuncCall Var [Expr]
+ | Variable LIdent
+ | FuncCall LIdent [Expr]
  | BoolLiteral Bool
- | NumLiteral String
+ | NumLiteral Double
  | StringLiteral String
- | Array [Expr]
+ | ArrayExpr [Expr]
  | DirectCall String [Expr]
- | Cast Type Expr
+ | Cast ASTType Expr
  deriving (Show, Eq)
 
 data UnaryOperator = NotOp | NegOp
@@ -88,10 +85,12 @@ data UnaryOperator = NotOp | NegOp
 data BinaryOperator = AndOp | OrOp | AddOp | SubOp | DivOp | MulOp | ModOp | EqOp | NotEqOp | LessOp | GreaterOp | LessEqualOp | GreaterEqualOp
     deriving (Show, Eq)
 
-data Type = Type ResolveableModule TypeName
-  deriving (Show, Eq)
-data Var = Var ResolveableModule VarName
-  deriving (Show, Eq)
+type ASTType = Type' UIdent
+
+data UIdent = UIdent ResolveableModule TypeName
+  deriving (Show, Eq, Ord)
+data LIdent = LIdent ResolveableModule VarName
+  deriving (Show, Eq, Ord)
 
 type ResolveableModule = [TypeName]
 

@@ -3,6 +3,8 @@ module TQF.Parser (parse) where
 
 import TQF.Lexer
 import TQF.AST
+import qualified TQF.Type as Type
+import qualified Data.Map as Map
 import Data.List
 }
 
@@ -17,14 +19,18 @@ import Data.List
     import { TokenImport }
     qualified { TokenQualified }
     as { TokenAs }
-    extern { TokenExtern }
     if { TokenIf }
     else { TokenElse }
     while { TokenWhile }
     do { TokenDo }
     return { TokenReturn }
+    type { TokenType }
+    function { TokenFunction }
+    global { TokenGlobal }
+    top { TokenTop }
     '=' { TokenAssign }
     '(' { TokenOpenP }
+    '\'(' { TokenOpenPTuple }
     ')' { TokenCloseP }
     '[' { TokenOpenSquare }
     ']' { TokenCloseSquare }
@@ -46,12 +52,15 @@ import Data.List
     '>=' { TokenGe }
     '!=' { TokenNe }
     '!' { TokenNot }
+    '|' { TokenPipe }
+    ':' { TokenColon }
     bool { TokenBool $$ }
     int { TokenNum $$ }
     string { TokenString $$ }
-    lidentSimple { TokenIdentLower (Var [] $$)}
+    lidentSimple { TokenIdentLower (LIdent [] $$)}
     lident { TokenIdentLower $$ }
     uident { TokenIdentUpper $$ }
+    simpletype { TokenSimpleType $$ }
 
 %left '||'
 %right '&&'
@@ -82,22 +91,40 @@ ImportRenaming : {- empty -} {Nothing}
 Declarations : {- empty -} {[]}
     | Declarations Declaration { $2 : $1 }
 
-Declaration : FunctionQualifiers uident lidentSimple FunctionDeclCapture '(' FunctionDeclArguments ')' CodeBlock { FunctionDecl $1 $3 $2 $4 $6 (CodeBlock $8) }
+Type : simpletype { Type.simpleType $1 }
+    | int { Type.constNumber $1 }
+    | string { Type.constString $1 }
+    | bool { Type.constBool $1 }
+    | top { Type.top }
+    | Type '|' Type { $1 <> $3 }
+    | '(' Type ')' { $2 }
+    | uident { Type.extra $1 }
 
-FunctionDeclCapture : {- empty -} { [] }
-    | '[' FunctionDeclArguments ']' { $2 }
+    -- Tuple definition
+    | '(' ')' { Type.tuple [] }
+    | '\'(' TupleElements ')' { Type.tuple $2 }
+    | '(' Type ',' Type TupleElements ')' { Type.tuple ( $2 : $4 : $5 ) }
 
-FunctionQualifiers : {- empty -} {[]}
-    | FunctionQualifier {[$1]}
-    | FunctionQualifier FunctionQualifiers {$1:$2}
+    -- Record definition
+    | '{' TypeRecordFields '}' { Type.record $ Map.fromList $2 }
+    
+TupleElements : {- empty -} {[]}
+    | Type { [$1] }
+    | Type ',' TupleElements { $1 : $3 }
 
-FunctionQualifier : extern { QualifierExtern }
+TypeRecordFields : {- empty -} {[]}
+    | TypeRecordField {[$1]}
+    | TypeRecordField ',' TypeRecordFields { $1:$3 }
+
+TypeRecordField : lidentSimple ':' Type { (unVarName $1, $3) }
+
+Declaration : function Type lidentSimple '(' FunctionDeclArguments ')' CodeBlock { FunctionDecl $3 $2 $5 (CodeBlock $7) }
 
 FunctionDeclArguments : {- empty -} {[]}
     | FunctionDeclArgument {[$1]}
     | FunctionDeclArgument ',' FunctionDeclArguments {$1:$3}
 
-FunctionDeclArgument : uident lidentSimple {($1, $2)}
+FunctionDeclArgument : Type lidentSimple {($1, $2)}
 
 CodeBlock : '{' Statements '}' {$2}
 
@@ -119,7 +146,7 @@ StatementNoSemicolon : StatementNoEndSemicolon {$1}
     | StatementEndSemicolon {$1}
 
 StatementEndSemicolon : Lident LidentStatement {$2 $1}
-    | uident lidentSimple VariableDeclarationAssignment {VariableDeclaration $1 $2 $3}
+    | Type lidentSimple VariableDeclarationAssignment {VariableDeclaration $1 $2 $3}
     | do StatementNoSemicolon while '(' Expr ')' {DoWhile $5 $2}
     | return ReturnValue {Return $2}
 
@@ -156,20 +183,21 @@ Expr : Expr '+' Expr {BinaryOperator AddOp $1 $3}
     | Lident '(' ExprList ')' {FuncCall $1 $3}
     | bool {BoolLiteral $1}
     | int {NumLiteral $1}
+    | '-' int {NumLiteral (negate $2)}
     | string {StringLiteral $1}
-    | '[' ExprList ']' {Array $2}
+    | '[' ExprList ']' {ArrayExpr $2}
     | '<' lidentSimple '>' '(' ExprList ')' {DirectCall (unVarName $2) $5}
     | '(' Expr ')' {$2}
-    | '(' uident ')' Expr {Cast $2 $4}
+    | '(' Type ')' Expr {Cast $2 $4}
 
 ModuleIdent : uident {typeToModuleIdent $1}
 
-Lident : lidentSimple { Var [] $1 }
+Lident : lidentSimple { LIdent [] $1 }
     | lident { $1 }
 
 {
-typeToModuleIdent :: Type -> ResolveableModule
-typeToModuleIdent (Type modules ident) = modules ++ [ident]
+typeToModuleIdent :: UIdent -> ResolveableModule
+typeToModuleIdent (UIdent modules ident) = modules ++ [ident]
 
 parseError tokens = Left $ "Parse error on tokens " ++ intercalate " " (show <$> tokens)
 }

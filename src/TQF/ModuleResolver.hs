@@ -19,17 +19,17 @@ data Namespace = Namespace
   }
   deriving (Eq, Show)
 
-addLocalVar :: VarName -> Type -> Namespace -> Namespace
+addLocalVar :: VarName -> ASTType -> Namespace -> Namespace
 addLocalVar ident typ ns = ns { lowerIdent = Map.insert ident val $ lowerIdent ns }
   where val = [VariableDecl typ ident]
 
-findLIdent :: Namespace -> Var -> Maybe [Declaration]
-findLIdent Namespace {..}   (Var []       varName) = Map.lookup varName lowerIdent
-findLIdent n@Namespace {..} (Var (i : is) varName) = Map.lookup i upperIdent >>= \case
-  (Left  ns) -> findLIdent ns (Var is varName)
+findLIdent :: Namespace -> LIdent -> Maybe [Declaration]
+findLIdent Namespace {..}   (LIdent []       varName) = Map.lookup varName lowerIdent
+findLIdent n@Namespace {..} (LIdent (i : is) varName) = Map.lookup i upperIdent >>= \case
+  (Left  ns) -> findLIdent ns (LIdent is varName)
   (Right ns) -> Nothing
 
-data ResolverError = NamespaceTypeClash Type
+data ResolverError = NamespaceTypeClash UIdent
     | UIdentClash ResolveableModule TypeName
     deriving (Eq, Show)
 
@@ -52,7 +52,7 @@ onChildNamespace ident transform = do
   child <- case Map.lookup ident (upperIdent state) of
     Nothing                -> return $ Namespace (path state ++ [ident]) Map.empty Map.empty
     Just (Left  namespace) -> return namespace
-    Just (Right _        ) -> lift $ Left $ NamespaceTypeClash $ Type (path state) ident
+    Just (Right _        ) -> lift $ Left $ NamespaceTypeClash $ UIdent (path state) ident
   (ret, child') <- lift $ runNamespaceTransformation' transform child
   put $ state { upperIdent = Map.insert ident (Left child') (upperIdent state) }
   return ret

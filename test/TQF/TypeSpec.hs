@@ -7,22 +7,26 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 import TQF.Type
 import qualified Data.Map as Map
+import Data.Map (Map)
 
 implies :: Bool -> Bool -> Bool
 implies l r = not l || r
+
+withinEachOther :: Type -> Type -> Bool
+withinEachOther l r = l `isWithin` r && r `isWithin` l
 
 spec :: Spec
 spec = modifyMaxSuccess (const 10000) $ do
     describe "monoid" $ do
         it "Anything merged with Top is Top" $ do
-            (top <> top) `shouldBe` top
-            (top <> bottom) `shouldBe` top
-            (top <> bottom) `shouldBe` top
+            (top <> top) `shouldBe` (top :: Type)
+            (top <> bottom) `shouldBe` (top :: Type)
+            (top <> bottom) `shouldBe` (top :: Type)
         it "Should have an identity with bottom" $ do
-            (bottom <> top) `shouldBe` top
-            (bottom <> simpleType String) `shouldBe` simpleType String
+            (bottom <> top) `shouldBe` (top :: Type)
+            (bottom <> simpleType String) `shouldBe` (simpleType String :: Type)
         it "Should be commutative" $ do
-            simpleType String <> simpleType Number `shouldBe` simpleType Number <> simpleType String
+            simpleType String <> simpleType Number `shouldBe` (simpleType Number <> simpleType String :: Type)
     describe "isWithin" $ do
         it "Should class anything being within Top" $
                (top `isWithin` top)
@@ -83,10 +87,17 @@ spec = modifyMaxSuccess (const 10000) $ do
             it "Should widen into a simple HashMap" $ do
                 record mempty `isWithin` simpleType HashMap
             it "Should count an empty record as being within itself" $ do
-                record mempty `isWithin` record mempty
+                record (mempty::Map String Type) `isWithin` record mempty
             it "Should count a record with more fields as being within another" $ do
                 record (Map.fromList [("a", top), ("b", top)]) `isWithin` record (Map.fromList [("a", top)])
             it "Should not count a record with less fields as being within another" $ do
                 not $ record (Map.fromList [("a", top)]) `isWithin` record (Map.fromList [("a", top), ("b", top)])
             it "Should ensure that subtype's fields are subtypes of the supertype's definitions" $
                 not $ record (Map.singleton "a" top) `isWithin` record (Map.singleton "a" bottom)
+    describe "intersect" $ do
+        it "(property) intersection should be within both types" $ do
+            forAll (arbitrary :: Gen (Type, Type)) (\(l, r) -> (l `intersect` r) `isWithin` l && (l `intersect` r) `isWithin` r)
+        it "(property) intersection with self is an identity" $ do
+            forAll arbitrary (\x -> (x `intersect` x) `withinEachOther` x)
+        it "(property) intersection + union forms an identity" $ do
+            forAll arbitrary (\(l, r) -> (l <> (l `intersect` r)) `withinEachOther` l)

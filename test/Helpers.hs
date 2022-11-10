@@ -4,15 +4,15 @@ import qualified Data.Map                      as Map
 import           TQF.AST
 import           TQF.ModuleResolver
 
-typN :: String -> Type
-typN = Type [] . TypeName
-varN :: String -> Var
-varN = Var [] . VarName
+typN :: String -> UIdent
+typN = UIdent [] . TypeName
+varN :: String -> LIdent
+varN = LIdent [] . VarName
 
-typN' :: [String] -> String -> Type
-typN' args = Type (map TypeName args) . TypeName
-varN' :: [String] -> String -> Var
-varN' args = Var (map TypeName args) . VarName
+typN' :: [String] -> String -> UIdent
+typN' args = UIdent (map TypeName args) . TypeName
+varN' :: [String] -> String -> LIdent
+varN' args = LIdent (map TypeName args) . VarName
 
 u :: String -> TypeName
 u = TypeName
