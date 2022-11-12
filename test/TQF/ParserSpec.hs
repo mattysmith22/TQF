@@ -81,13 +81,13 @@ statementSpec = do
   describe "FunctionDecl call" $ do
     it "Should parse a normal function call"
       $             "func(1,\"test\");"
-      `shouldParse` [FunctionCall (LIdent [] (l "func")) [NumLiteral 1, StringLiteral "\"test\""]]
+      `shouldParse` [FunctionCall (toIdent "func") [NumLiteral 1, StringLiteral "\"test\""]]
     it "Should parse an empty function call"
       $             "func();"
-      `shouldParse` [FunctionCall (LIdent [] (l "func")) []]
+      `shouldParse` [FunctionCall (toIdent "func") []]
     it "Should parse a function call in another namespace"
       $             "Test.func(1);"
-      `shouldParse` [FunctionCall (LIdent [u "Test"] (l "func")) [NumLiteral 1]]
+      `shouldParse` [FunctionCall (toIdent "Test.func") [NumLiteral 1]]
   describe "Return" $ do
     it "Should parse a normal return statement"
       $             "return 1;"

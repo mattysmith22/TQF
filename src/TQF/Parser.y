@@ -6,6 +6,7 @@ import TQF.AST
 import qualified TQF.Type as Type
 import qualified Data.Map as Map
 import Data.List
+import Data.List.NonEmpty (NonEmpty((:|)))
 }
 
 %name parse
@@ -58,7 +59,7 @@ import Data.List
     bool { TokenBool $$ }
     int { TokenNum $$ }
     string { TokenString $$ }
-    lidentSimple { TokenIdentLower (LIdent [] $$)}
+    lidentSimple { TokenIdentLower (LIdent [] ($$:|[]))}
     lident { TokenIdentLower $$ }
     uidentSimple { TokenIdentUpper (UIdent [] $$)}
     uident { TokenIdentUpper $$ }
@@ -201,7 +202,7 @@ Expr : Expr '+' Expr {BinaryOperator AddOp $1 $3}
 
 ModuleIdent : Uident {typeToModuleIdent $1}
 
-Lident : lidentSimple { LIdent [] $1 }
+Lident : lidentSimple { LIdent [] ($1:|[]) }
     | lident { $1 }
 
 Uident : uidentSimple { UIdent [] $1 }

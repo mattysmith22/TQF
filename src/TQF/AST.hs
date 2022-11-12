@@ -1,9 +1,16 @@
 {-# LANGUAGE TypeFamilies, StandaloneDeriving, FlexibleContexts, UndecidableInstances, DataKinds, ConstraintKinds #-}
+{-# LANGUAGE InstanceSigs #-}
 module TQF.AST where
 
 import TQF.Type
 
-import           Data.List.NonEmpty
+import           Data.List.NonEmpty (NonEmpty((:|)))
+import           Data.Char (isLower)
+import qualified Data.List.NonEmpty as NE
+import           Data.List.Extra (unsnoc)
+import           Data.List.Split (splitOn)
+import           Data.Maybe (fromJust)
+import           Control.Arrow
 
 data Parsed
 data Resolved
@@ -14,7 +21,7 @@ type family TypeDeclF a where
 
 type family LIdentF a where
   LIdentF Parsed = LIdent
-  LIdentF Resolved = ModLIdentDecl
+  LIdentF Resolved = ResolvedLIdent
 
 type ValidASTLevel a = (Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a))
 
@@ -130,16 +137,18 @@ type ASTType = Type' UIdent
 
 data UIdent = UIdent ResolveableModule TypeName
   deriving (Show, Eq, Ord)
-data LIdent = LIdent ResolveableModule VarName
+data LIdent = LIdent ResolveableModule (NonEmpty VarName)
   deriving (Show, Eq, Ord)
+
+data ResolvedLIdent = ResolvedLIdent ModLIdentDecl [VarName]
 
 type ResolveableModule = [TypeName]
 
 newtype TypeName = TypeName {unTypeName:: String}
     deriving (Eq, Ord)
 
-data ModLIdentDecl = ModFunction LIdent [Type] Type
-  | ModGlobalVariable LIdent Type
+data ModLIdentDecl = ModFunction (ResolveableModule, VarName) [Type] Type
+  | ModGlobalVariable (ResolveableModule, VarName) Type
   | ModLocalVariable VarName Type
 
 instance Show TypeName where
@@ -150,3 +159,26 @@ newtype VarName = VarName {unVarName:: String}
 
 instance Show VarName where
   show (VarName x) = show x
+
+class ToIdent a where
+  toIdent :: String -> a
+
+instance ToIdent VarName where
+  toIdent = VarName
+instance ToIdent TypeName where
+  toIdent = TypeName
+instance ToIdent LIdent where
+  toIdent
+    = uncurry LIdent
+    . second NE.fromList
+    . (fmap TypeName *** fmap VarName)
+    . break (isLower . head)
+    . splitOn "."
+instance ToIdent UIdent where
+  toIdent
+    = uncurry UIdent
+    . fromJust
+    . unsnoc
+    . fmap TypeName
+    . splitOn "."
+    

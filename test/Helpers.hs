@@ -2,16 +2,17 @@ module Helpers where
 
 import qualified Data.Map                      as Map
 import           TQF.AST
+import           Data.List.NonEmpty (NonEmpty((:|)))
 
 typN :: String -> UIdent
 typN = UIdent [] . TypeName
 varN :: String -> LIdent
-varN = LIdent [] . VarName
+varN = LIdent [] . (:|[]) . VarName
 
 typN' :: [String] -> String -> UIdent
 typN' args = UIdent (map TypeName args) . TypeName
 varN' :: [String] -> String -> LIdent
-varN' args = LIdent (map TypeName args) . VarName
+varN' args = LIdent (map TypeName args) . (:|[]) . VarName
 
 u :: String -> TypeName
 u = TypeName

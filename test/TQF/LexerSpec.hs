@@ -5,6 +5,7 @@ module TQF.LexerSpec
 import           TQF.AST
 import           TQF.Lexer
 import           Test.Hspec
+import           Data.List.NonEmpty (NonEmpty((:|)))
 
 shouldLex :: String -> [Token] -> Expectation
 shouldLex input expectedTokens = alexScanTokens input `shouldBe` expectedTokens
@@ -13,14 +14,9 @@ shouldNotLex :: String -> [Token] -> Expectation
 shouldNotLex input expectedTokens = alexScanTokens input `shouldNotBe` expectedTokens
 
 u :: String -> Token
-u = TokenIdentUpper . UIdent [] . TypeName
+u = TokenIdentUpper . toIdent
 l :: String -> Token
-l = TokenIdentLower . LIdent [] . VarName
-
-uNamespace :: [String] -> String -> Token
-uNamespace modules = TokenIdentUpper . UIdent (TypeName <$> modules) . TypeName
-lNamespace :: [String] -> String -> Token
-lNamespace modules = TokenIdentLower . LIdent (TypeName <$> modules) . VarName
+l = TokenIdentLower . toIdent
 
 reservedWords =
   [ ("module"   , TokenModule)
@@ -75,7 +71,7 @@ spec = do
   describe "LowerIdent" $ do
     it "Should lex an ident for any text that starts with a lowercase" $ do
       "ident" `shouldLex` [l "ident"]
-      "Ident" `shouldNotLex` [l "Ident"]
+      "Ident" `shouldLex` [u "Ident"]
     it "Should not lex reserved words as an ident" $ do
       "while" `shouldNotLex` [l "while"]
     it "Should correctly lex idents that contain reserved words" $ do
@@ -83,7 +79,7 @@ spec = do
       "whilei" `shouldLex` [l "whilei"]
       "iwhilei" `shouldLex` [l "iwhilei"]
     it "Should correctly lex idents with namespaces" $ do
-      "Test.Module.ident" `shouldLex` [lNamespace ["Test", "Module"] "ident"]
+      "Test.Module.ident" `shouldLex` [l "Test.Module.ident"]
   describe "UpperIdent" $ do
     it "Should lex an ident for any text that starts with a uppercase" $ do
       "Ident" `shouldLex` [u "Ident"]
@@ -93,7 +89,7 @@ spec = do
       "Whilei" `shouldLex` [u "Whilei"]
       "Iwhilei" `shouldLex` [u "Iwhilei"]
     it "Should correctly lex idents with namespaces" $ do
-      "Test.Module.Ident" `shouldLex` [uNamespace ["Test", "Module"] "Ident"]
+      "Test.Module.Ident" `shouldLex` [u "Test.Module.Ident"]
   describe "Reserved words" $ do
     it "Should lex all reserved words"
       $ mapM_ (\(ident, token) -> ident `shouldLex` [token]) reservedWords

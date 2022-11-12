@@ -11,6 +11,7 @@ import Data.Maybe
 import Data.Either.Extra (mapLeft)
 import Data.Tuple.Extra (firstM)
 import Control.Monad.State
+import Data.List.NonEmpty ( NonEmpty((:|)) )
 
 applyWhen :: Bool -> (a -> a) -> a -> a
 applyWhen True f = f
@@ -44,12 +45,12 @@ addTopLevelDeclToEnv :: ResolveableModule -> Environment -> Declaration Parsed -
 addTopLevelDeclToEnv mod env FunctionDecl{..} = do
     ret <- resolveType env functionType
     args <- traverse (resolveType env . fst) functionArguments
-    let toAdd = ModFunction (LIdent mod functionName) args ret
-    return $ addLIdent (LIdent [] functionName) toAdd env
+    let toAdd = ModFunction (mod, functionName) args ret
+    return $ addLIdent ([], functionName) toAdd env
 addTopLevelDeclToEnv mod env VariableDecl{..} = do
     typ <- resolveType env variableType
-    let toAdd = ModGlobalVariable (LIdent mod variableName) typ
-    return $ addLIdent (LIdent [] variableName) toAdd env
+    let toAdd = ModGlobalVariable (mod, variableName) typ
+    return $ addLIdent ([], variableName) toAdd env
 addTopLevelDeclToEnv mod env TypeDecl{..} = do
     typ <- resolveType env typeValue
     return $ addUIdent (UIdent [] typeName) typ env
@@ -71,7 +72,7 @@ resolveDeclaration env FunctionDecl{..} = do
         }
     where
         addArgsToEnv :: [(Type, VarName)] -> Environment -> Environment
-        addArgsToEnv args env = foldr (\(t, n) -> addLIdent (LIdent [] n) (ModLocalVariable n t)) env args
+        addArgsToEnv args env = foldr (\(t, n) -> addLIdent ([], n) (ModLocalVariable n t)) env args
 resolveDeclaration env VariableDecl{..} = do
     typ <- resolveType env variableType
     return VariableDecl 
@@ -105,7 +106,7 @@ resolveStatement env (CodeBlock stmts) = first CodeBlock <$> runStateT (traverse
 resolveStatement env VariableDeclaration{..} = do
     typ <- resolveType env varDeclType
     resExpr <- traverse (resolveExpr env) varDeclValue
-    let env' = addLIdent (LIdent [] varDeclName) (ModLocalVariable varDeclName typ) env
+    let env' = addLIdent ([], varDeclName) (ModLocalVariable varDeclName typ) env
     return $ (,env') VariableDeclaration
         { varDeclType = typ
         , varDeclName = varDeclName

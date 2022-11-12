@@ -10,6 +10,10 @@ import Control.Monad (liftM)
 import TQF.AST
 import qualified TQF.Type as Type
 import Data.List.Split
+import Data.Char (isLower)
+import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty((:|)))
+import Data.List (break)
 }
 
 %wrapper "basic"
@@ -90,16 +94,9 @@ tokens :-
   "|"   { constToken TokenPipe }
   ":"   { constToken TokenColon }
 -- Identifiers
-  (@uident ".")* @lident 		{ tok (identTok TokenIdentLower LIdent VarName) }
-  (@uident ".")* @uident 		{ tok (identTok TokenIdentUpper UIdent TypeName) }
+  (@uident ".")*@lident("."@lident)* 		{ tok (TokenIdentLower . toIdent) }
+  (@uident ".")* @uident 		{ tok (TokenIdentUpper . toIdent) }
 {
-
-identTok :: (ident -> token) -> (ResolveableModule -> name -> ident) -> (String -> name) -> String -> token
-identTok toToken toIdent toName input = toToken $ toIdent namespace ident
-  where
-    namespace = TypeName <$> init splitItems
-    ident = toName $ last splitItems
-    splitItems = splitOn "." input
 
 data Token
   = TokenModule
@@ -204,7 +201,7 @@ unLex (TokenBool False) = "false"
 unLex (TokenNum x) = show x
 unLex (TokenString x) = x
 unLex (TokenSimpleType x) = Type.simpleTypeToString x
-unLex (TokenIdentLower (LIdent modules ident)) = unLexModules modules ++ unVarName ident
+unLex (TokenIdentLower (LIdent modules (ident:|rest))) = unLexModules modules ++ unVarName ident ++ concatMap (("."++) . unVarName) rest
 unLex (TokenIdentUpper (UIdent modules ident)) = unLexModules modules ++ unTypeName ident
 unLex TokenEOF = "<EOF>"
 
