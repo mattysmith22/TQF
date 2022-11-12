@@ -22,7 +22,11 @@ module TQF.Type
     , code
     , record
     , extra
+    
     , resolveType
+    , lookupField
+    , validateFuncCall
+    , validateDirectCall
     ) where
 
 import Data.Functor.Identity ()
@@ -33,8 +37,11 @@ import Data.Zip
 import qualified Data.Set as Set
 import Test.QuickCheck
 import Control.Arrow
-import Data.Maybe (fromJust, isJust)
+import Data.Foldable (traverse_)
+import Data.Maybe (fromJust, isJust, mapMaybe)
+import Control.Monad (unless)
 import Data.Either (isRight, fromLeft, fromRight)
+import SQF.Commands
 
 class Within a where
     isWithin' :: a -> a -> Bool
@@ -327,3 +334,36 @@ resolveType lookupF (Options xs) = mconcat <$> traverse resolveBaseType (Set.toL
         resolveBaseType (CodeType x y) = (\a b -> Options $ Set.singleton $ CodeType a b) <$> traverse (resolveType lookupF) x <*> resolveType lookupF y
         resolveBaseType (RecordType x) = Options . Set.singleton . RecordType <$> traverse (resolveType lookupF) x
         resolveBaseType (ExtraType x) = lookupF x
+
+lookupField :: String -> Type -> Maybe Type
+lookupField _ Top = Nothing
+lookupField field (Options xs)
+    = fmap mconcat $ traverse lookupFieldBaseType $ Set.toList xs
+    where
+        lookupFieldBaseType :: BaseType () -> Maybe Type
+        lookupFieldBaseType (RecordType x) = Map.lookup field x
+        lookupFieldBaseType _ = Nothing
+
+validateFuncCall :: Type -> [Type] -> Either (Type, Type) Type
+validateFuncCall Top argsIn = Left (Top, code argsIn Top)
+validateFuncCall (Options xs) argsIn
+    = fmap mconcat $ traverse validateFuncCallBaseType $ Set.toList xs
+    where
+        validateFuncCallBaseType :: BaseType () -> Either (Type, Type) Type
+        validateFuncCallBaseType (CodeType args ret) = do
+            traverse_ (\x -> unless (uncurry isWithin x) $ Left x) $ zipPadded (simpleType Nil) top argsIn args
+            return ret
+        validateFuncCallBaseType notCode = Left (Options $ Set.singleton notCode, code argsIn Top)
+    
+validateDirectCall :: [(CommandArgs Type, Type)] -> [Type] -> Either () Type
+validateDirectCall possibleSigs args = if null matchedTypes then Left () else Right $ mconcat matchedTypes
+    where
+        matchedTypes = mapMaybe matchSingleDirectCall possibleSigs
+        matchSingleDirectCall :: (CommandArgs Type, Type) -> Maybe Type
+        matchSingleDirectCall (reqArgs, ret) =
+            let isValid = case (reqArgs, args) of
+                    (CommandNular, []) -> True
+                    (CommandUnary rx, [x]) -> x `isWithin` rx
+                    (CommandBinary rx ry, [x, y]) -> x `isWithin` rx && x `isWithin` ry
+                    (_,_) -> False
+            in if isValid then Just ret else Nothing

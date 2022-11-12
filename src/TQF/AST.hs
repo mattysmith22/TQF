@@ -11,6 +11,7 @@ import           Data.List.Extra (unsnoc)
 import           Data.List.Split (splitOn)
 import           Data.Maybe (fromJust)
 import           Control.Arrow
+import           SQF.Commands
 
 data Parsed
 data Resolved
@@ -23,7 +24,11 @@ type family LIdentF a where
   LIdentF Parsed = LIdent
   LIdentF Resolved = ResolvedLIdent
 
-type ValidASTLevel a = (Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a))
+type family CommandF a where
+  CommandF Parsed = String
+  CommandF Resolved = [(CommandArgs Type, Type)]
+
+type ValidASTLevel a = (Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a), Show (CommandF a), Eq (CommandF a))
 
 data Module a = Module
   { moduleName         :: ResolveableModule
@@ -61,11 +66,6 @@ data Declaration a = FunctionDecl
 deriving instance ValidASTLevel a => Show (Declaration a)
 deriving instance ValidASTLevel a => Eq (Declaration a)
 
-data CommandArgs a = CommandNular
-  | CommandUnary a
-  | CommandBinary a a
-  deriving (Show, Eq)
-
 instance Functor CommandArgs where
   fmap _ CommandNular = CommandNular
   fmap f (CommandUnary x) = CommandUnary (f x)
@@ -75,6 +75,7 @@ instance Foldable CommandArgs where
   foldr f acc (CommandUnary x) = f x acc
   foldr f acc (CommandBinary x y) = f x (f y acc)
 instance Traversable CommandArgs where
+  traverse :: Applicative f => (a -> f b) -> CommandArgs a -> f (CommandArgs b)
   traverse f CommandNular = pure CommandNular
   traverse f (CommandUnary x) = CommandUnary <$> f x
   traverse f (CommandBinary x y) = CommandBinary <$> f x <*> f y
@@ -113,15 +114,14 @@ data Statement a =
 deriving instance ValidASTLevel a => Show (Statement a)
 deriving instance ValidASTLevel a => Eq (Statement a)
 
-data Expr a = UnaryOperator UnaryOperator (Expr a)
- | BinaryOperator BinaryOperator (Expr a) (Expr a)
- | Variable (LIdentF a)
+data Expr a
+ = Variable (LIdentF a)
  | FuncCall (LIdentF a) [Expr a]
  | BoolLiteral Bool
  | NumLiteral Double
  | StringLiteral String
  | ArrayExpr [Expr a]
- | DirectCall String [Expr a]
+ | DirectCall (CommandF a) [Expr a]
  | Cast (TypeDeclF a) (Expr a)
 
 deriving instance ValidASTLevel a => Show (Expr a)
@@ -141,6 +141,7 @@ data LIdent = LIdent ResolveableModule (NonEmpty VarName)
   deriving (Show, Eq, Ord)
 
 data ResolvedLIdent = ResolvedLIdent ModLIdentDecl [VarName]
+  deriving (Show, Eq)
 
 type ResolveableModule = [TypeName]
 
@@ -150,6 +151,7 @@ newtype TypeName = TypeName {unTypeName:: String}
 data ModLIdentDecl = ModFunction (ResolveableModule, VarName) [Type] Type
   | ModGlobalVariable (ResolveableModule, VarName) Type
   | ModLocalVariable VarName Type
+  deriving (Show, Eq)
 
 instance Show TypeName where
   show (TypeName x) = show x

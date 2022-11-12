@@ -179,26 +179,26 @@ expressionSpec = do
         `shouldParse` StringLiteral "\"String \\n with \\\" escape \\t codes\""
   describe "Unary Operators" $ do
     it "Should parse negate operators" $ do
-      "-(20)" `shouldParse` UnaryOperator NegOp (NumLiteral 20)
+      "-(20)" `shouldParse` DirectCall "-" [NumLiteral 20]
     it "Should parse not operators" $ do
-      "!true" `shouldParse` UnaryOperator NotOp (BoolLiteral True)
+      "!true" `shouldParse` DirectCall "!" [BoolLiteral True]
   describe "Binary Operators" $ do
     it "Should parse mathematical operators" $ do
-      "1+2" `shouldParse` BinaryOperator AddOp (NumLiteral 1) (NumLiteral 2)
-      "1-2" `shouldParse` BinaryOperator SubOp (NumLiteral 1) (NumLiteral 2)
-      "1*2" `shouldParse` BinaryOperator MulOp (NumLiteral 1) (NumLiteral 2)
-      "1/2" `shouldParse` BinaryOperator DivOp (NumLiteral 1) (NumLiteral 2)
-      "1%2" `shouldParse` BinaryOperator ModOp (NumLiteral 1) (NumLiteral 2)
+      "1+2" `shouldParse` DirectCall "+" [NumLiteral 1, NumLiteral 2]
+      "1-2" `shouldParse` DirectCall "-" [NumLiteral 1, NumLiteral 2]
+      "1*2" `shouldParse` DirectCall "*" [NumLiteral 1, NumLiteral 2]
+      "1/2" `shouldParse` DirectCall "/" [NumLiteral 1, NumLiteral 2]
+      "1%2" `shouldParse` DirectCall "%" [NumLiteral 1, NumLiteral 2]
     it "Should parse boolean operators" $ do
-      "1&&2" `shouldParse` BinaryOperator AndOp (NumLiteral 1) (NumLiteral 2)
-      "1||2" `shouldParse` BinaryOperator OrOp (NumLiteral 1) (NumLiteral 2)
+      "1&&2" `shouldParse` DirectCall "&&" [NumLiteral 1, NumLiteral 2]
+      "1||2" `shouldParse` DirectCall "||" [NumLiteral 1, NumLiteral 2]
     it "Should parse comparison operators" $ do
-      "1==2" `shouldParse` BinaryOperator EqOp (NumLiteral 1) (NumLiteral 2)
-      "1!=2" `shouldParse` BinaryOperator NotEqOp (NumLiteral 1) (NumLiteral 2)
-      "1<2" `shouldParse` BinaryOperator LessOp (NumLiteral 1) (NumLiteral 2)
-      "1>2" `shouldParse` BinaryOperator GreaterOp (NumLiteral 1) (NumLiteral 2)
-      "1>=2" `shouldParse` BinaryOperator GreaterEqualOp (NumLiteral 1) (NumLiteral 2)
-      "1<=2" `shouldParse` BinaryOperator LessEqualOp (NumLiteral 1) (NumLiteral 2)
+      "1==2" `shouldParse` DirectCall "isEqualTo" [NumLiteral 1, NumLiteral 2]
+      "1!=2" `shouldParse` DirectCall "isNotEqualTo" [NumLiteral 1, NumLiteral 2]
+      "1<2" `shouldParse` DirectCall "<" [NumLiteral 1, NumLiteral 2]
+      "1>2" `shouldParse` DirectCall ">" [NumLiteral 1, NumLiteral 2]
+      "1>=2" `shouldParse` DirectCall ">=" [NumLiteral 1, NumLiteral 2]
+      "1<=2" `shouldParse` DirectCall "<=" [NumLiteral 1, NumLiteral 2]
   describe "FunctionDecl calls" $ do
     it "Should parse a function call" $ "func(1, 2)" `shouldParse` FuncCall
       (varN' [] "func")
@@ -220,18 +220,18 @@ expressionSpec = do
     (extra $ typN' ["NS"] "Type")
     (NumLiteral 1)
   describe "Precedence" $ do
-    it "Precedence test 1" $ "1 + 2 * 3" `shouldParse` BinaryOperator
-      AddOp
-      (NumLiteral 1)
-      (BinaryOperator MulOp (NumLiteral 2) (NumLiteral 3))
-    it "Precedence test 2" $ "(1 + 2) * 3" `shouldParse` BinaryOperator
-      MulOp
-      (BinaryOperator AddOp (NumLiteral 1) (NumLiteral 2))
-      (NumLiteral 3)
-    it "Precedence test 3" $ "(1 + -2) * 3" `shouldParse` BinaryOperator
-      MulOp
-      (BinaryOperator AddOp (NumLiteral 1) (NumLiteral (-2)))
-      (NumLiteral 3)
+    it "Precedence test 1" $ "1 + 2 * 3" `shouldParse` DirectCall
+      "+"
+      [ NumLiteral 1
+      , DirectCall "*" [NumLiteral 2, NumLiteral 3]]
+    it "Precedence test 2" $ "(1 + 2) * 3" `shouldParse` DirectCall
+      "*"
+      [ DirectCall "+" [NumLiteral 1, NumLiteral 2]
+      , NumLiteral 3]
+    it "Precedence test 3" $ "(1 + -2) * 3" `shouldParse` DirectCall
+      "*"
+      [ DirectCall "+" [NumLiteral 1,NumLiteral (-2)]
+      , NumLiteral 3]
  where
   shouldParse inp ast =
     parse

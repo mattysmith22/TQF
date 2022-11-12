@@ -47,6 +47,7 @@ tokens :-
   "type" { constToken TokenType }
   "function" { constToken TokenFunction }
   "global" { constToken TokenGlobal}
+  "command" { constToken TokenCommand }
 -- Types
   "top" { constToken $ TokenTop }
   "string" { constToken $ TokenSimpleType  Type.String}

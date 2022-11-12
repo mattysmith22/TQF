@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 122533a170047cf29c06650df65eae7bc013993a223a56bcda5d89dd3a0bb3f1
+-- hash: 92e0d4c439b0b447e7dee29f875a83e128a55092050605340571fca09ba688d0
 
 name:           TQF
 version:        0.1.0.0
@@ -36,6 +36,7 @@ library
       TQF.Parser
       TQF.Resolve
       TQF.Type
+      TQF.TypeCheck
   other-modules:
       Paths_TQF
   hs-source-dirs:
@@ -49,6 +50,7 @@ library
     , base >=4.7 && <5
     , bimap
     , containers
+    , errors
     , extra
     , mtl
     , split
@@ -71,6 +73,7 @@ executable TQF-exe
     , base >=4.7 && <5
     , bimap
     , containers
+    , errors
     , extra
     , mtl
     , pretty-simple
@@ -100,6 +103,7 @@ test-suite TQF-test
     , base >=4.7 && <5
     , bimap
     , containers
+    , errors
     , extra
     , hspec
     , mtl

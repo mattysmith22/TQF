@@ -1,4 +1,5 @@
 {
+{-# LANGUAGE TypeFamilies #-}
 module TQF.Parser (parse) where
 
 import TQF.Lexer
@@ -7,6 +8,7 @@ import qualified TQF.Type as Type
 import qualified Data.Map as Map
 import Data.List
 import Data.List.NonEmpty (NonEmpty((:|)))
+import SQF.Commands
 }
 
 %name parse
@@ -173,21 +175,21 @@ ExprList : {- empty -} {[]}
     | Expr {[$1]}
     | Expr ',' ExprList {$1:$3}
 
-Expr : Expr '+' Expr {BinaryOperator AddOp $1 $3}
-    | Expr '-' Expr {BinaryOperator SubOp $1 $3}
-    | Expr '*' Expr {BinaryOperator MulOp $1 $3}
-    | Expr '/' Expr {BinaryOperator DivOp $1 $3}
-    | Expr '%' Expr {BinaryOperator ModOp $1 $3}
-    | Expr '&&' Expr {BinaryOperator AndOp $1 $3}
-    | Expr '||' Expr {BinaryOperator OrOp $1 $3}
-    | Expr '==' Expr {BinaryOperator EqOp $1 $3}
-    | Expr '!=' Expr {BinaryOperator NotEqOp $1 $3}
-    | Expr '<=' Expr {BinaryOperator LessEqualOp $1 $3}
-    | Expr '>=' Expr {BinaryOperator GreaterEqualOp $1 $3}
-    | Expr '<' Expr {BinaryOperator LessOp $1 $3}
-    | Expr '>' Expr {BinaryOperator GreaterOp $1 $3}
-    | '!' Expr {UnaryOperator NotOp $2}
-    | '-' Expr %prec NEG {UnaryOperator NegOp $2}
+Expr : Expr '+' Expr {DirectCall "+" [$1, $3]}
+    | Expr '-' Expr {DirectCall "-" [$1, $3]}
+    | Expr '*' Expr {DirectCall "*" [$1, $3]}
+    | Expr '/' Expr {DirectCall "/" [$1, $3]}
+    | Expr '%' Expr {DirectCall "%" [$1, $3]}
+    | Expr '&&' Expr {DirectCall "&&" [$1, $3]}
+    | Expr '||' Expr {DirectCall "||" [$1, $3]}
+    | Expr '==' Expr {DirectCall "isEqualTo" [$1, $3]}
+    | Expr '!=' Expr {DirectCall "isNotEqualTo" [$1, $3]}
+    | Expr '<=' Expr {DirectCall "<=" [$1, $3]}
+    | Expr '>=' Expr {DirectCall ">=" [$1, $3]}
+    | Expr '<' Expr {DirectCall "<" [$1, $3]}
+    | Expr '>' Expr {DirectCall ">" [$1, $3]}
+    | '!' Expr {DirectCall "!" [$2]}
+    | '-' Expr %prec NEG {DirectCall "-" [$2]}
 
     | Lident {Variable $1}
     | Lident '(' ExprList ')' {FuncCall $1 $3}

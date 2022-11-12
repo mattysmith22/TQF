@@ -25,6 +25,7 @@ dependencies:
 - split
 - mtl
 - containers
+- errors
 - extra
 - bimap
 - QuickCheck

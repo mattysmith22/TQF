@@ -1,5 +1,7 @@
 {-# LANGUAGE RecordWildCards, TupleSections #-}
-module TQF.Resolve where
+module TQF.Resolve
+    ( resolveModule
+    ) where
 
 import TQF.AST
 import TQF.Environment
@@ -154,10 +156,6 @@ resolveStatement env (Return x) = do
     return (Return expr, env)
 
 resolveExpr :: Environment -> Expr Parsed -> Either EnvError (Expr Resolved)
-resolveExpr env (UnaryOperator op x) =
-    UnaryOperator op <$> resolveExpr env x
-resolveExpr env (BinaryOperator op l r) =
-    BinaryOperator op <$> resolveExpr env l <*> resolveExpr env r
 resolveExpr env (Variable x) =
     Variable <$> lookupLIdent env x
 resolveExpr env (FuncCall n args) =
@@ -171,7 +169,7 @@ resolveExpr env (StringLiteral x) =
 resolveExpr env (ArrayExpr xs) =
     ArrayExpr <$> traverse (resolveExpr env) xs
 resolveExpr env (DirectCall x args) =
-    DirectCall x <$> traverse (resolveExpr env) args
+    DirectCall (lookupCommand env x) <$> traverse (resolveExpr env) args
 resolveExpr env (Cast typ x) =
     Cast <$> resolveType env typ <*> resolveExpr env x
 

@@ -8,6 +8,7 @@ module TQF.Environment
     , addLIdent
     , lookupLIdent
     , addCommand
+    , lookupCommand
     , emptyEnv
     , importModuleToEnv
     ) where
@@ -17,6 +18,8 @@ import TQF.AST
 import qualified Data.Map as Map
 import Data.List.NonEmpty
 import TQF.Type
+import Data.Maybe (fromMaybe)
+import SQF.Commands
 
 data Environment = Environment
     { envCommands :: Map String [(CommandArgs Type, Type)]
@@ -33,6 +36,7 @@ data CanCollide a = NoCollision a
 data EnvError = EnvNotFound (Either UIdent LIdent)
     | EnvCollision (Either UIdent LIdent)
     | EnvIncorrectType (Either UIdent LIdent) String String
+    deriving (Show, Eq)
 
 unpackLookupError :: Either UIdent LIdent -> Maybe (CanCollide a) -> Either EnvError a
 unpackLookupError ident Nothing = Left $ EnvNotFound ident
@@ -51,7 +55,8 @@ lookupLIdent Environment{..} x@(LIdent modl (name:|rest)) = flip ResolvedLIdent 
 addLIdent :: (ResolveableModule, VarName) -> ModLIdentDecl -> Environment -> Environment
 addLIdent lident decl env = env { envLIdents = Map.insert lident (NoCollision decl) $ envLIdents env }
 
-
+lookupCommand :: Environment -> String -> [(CommandArgs Type, Type)]
+lookupCommand Environment{..} name = fromMaybe [] $ Map.lookup name envCommands
 
 addCommand :: String -> (CommandArgs Type, Type) -> Environment -> Environment
 addCommand name commandArgs env = env { envCommands = Map.insertWith (<>) name [commandArgs] (envCommands env)}
