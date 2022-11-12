@@ -9,7 +9,7 @@ import           TQF.Parser
 import           TQF.Type
 import           Test.Hspec
 
-shouldParse' :: String -> Module -> Expectation
+shouldParse' :: String -> Module Parsed -> Expectation
 shouldParse' input ast = parse (alexScanTokens input) `shouldBe` Right ast
 
 moduleSpec = do
@@ -41,28 +41,21 @@ importSpec = do
 
 declarationSpec = do
   it "Should parse a function declaration" $ do
-    "function string functionName(nil input) {}"
+    "function functionName(nil input): string {}"
       `shouldParse` [ FunctionDecl (l "functionName")
                                    (simpleType String)
                                    [(simpleType Nil, l "input")]
                                    (CodeBlock [])
                     ]
   it "Should parse a function declaration with namespaced types" $ do
-    "function NS.String functionName(NS.Void input) {}"
+    "function functionName(NS.Void input): NS.String {}"
       `shouldParse` [ FunctionDecl (l "functionName")
                                    (extra $ UIdent [u "NS"] (u "String"))
                                    [(extra $ UIdent [u "NS"] (u "Void"), l "input")]
                                    (CodeBlock [])
                     ]
-  it "Should parse a function declaration with closures" $ do
-    "function string functionName (nil input) {}"
-      `shouldParse` [ FunctionDecl (l "functionName")
-                                   (simpleType String)
-                                   [(simpleType Nil, l "input")]
-                                   (CodeBlock [])
-                    ]
   it "Should parse a function declaration with multiple arguments" $ do
-    "function string functionName(nil input, num input2) {}"
+    "function functionName(nil input, num input2): string {}"
       `shouldParse` [ FunctionDecl
                         (l "functionName")
                         (simpleType String)
@@ -70,7 +63,7 @@ declarationSpec = do
                         (CodeBlock [])
                     ]
   it "Should parse multiple function declarations"
-    $             "function string functionName(nil input) {} function num functionName2(string input2) {}"
+    $             "function functionName(nil input): string {} function functionName2(string input2): num {}"
     `shouldParse` [ FunctionDecl (l "functionName")
                                  (simpleType String)
                                  [(simpleType Nil, l "input")]
@@ -110,10 +103,10 @@ statementSpec = do
       `shouldParse` [CodeBlock [Return $ Just $ NumLiteral 1, Return $ Just $ NumLiteral 2]]
   describe "Variable Declarations" $ do
     it "Should parse a variable declaration without an assignment"
-      $             "Type varName;"
+      $             "varName: Type;"
       `shouldParse` [VariableDeclaration (extra $ typN' [] "Type") (l "varName") Nothing]
     it "Should parse a variable declaration with an assignment"
-      $             "Type varName = 1;"
+      $             "varName: Type = 1;"
       `shouldParse` [VariableDeclaration (extra $ typN' [] "Type") (l "varName") (Just $ NumLiteral 1)]
   describe "Assignment"
     $             it "Should parse an assignment"
@@ -153,7 +146,7 @@ statementSpec = do
  where
   shouldParse inp ast =
     parse
-        (alexScanTokens "module Test where function nil func() {" ++ alexScanTokens inp ++ [TokenCloseBrace]
+        (alexScanTokens "module Test where function func(): nil {" ++ alexScanTokens inp ++ [TokenCloseBrace]
         )
       `shouldBe` Right
                    (Module [u "Test"]
@@ -242,7 +235,7 @@ expressionSpec = do
  where
   shouldParse inp ast =
     parse
-        (  alexScanTokens "module Test where function nil func() {return "
+        (  alexScanTokens "module Test where function func(): nil {return "
         ++ alexScanTokens inp
         ++ [TokenSemicolon, TokenCloseBrace]
         )

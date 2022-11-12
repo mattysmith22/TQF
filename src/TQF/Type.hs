@@ -22,6 +22,7 @@ module TQF.Type
     , code
     , record
     , extra
+    , resolveType
     ) where
 
 import Data.Functor.Identity ()
@@ -31,7 +32,9 @@ import qualified Data.Map as Map
 import Data.Zip
 import qualified Data.Set as Set
 import Test.QuickCheck
+import Control.Arrow
 import Data.Maybe (fromJust, isJust)
+import Data.Either (isRight, fromLeft, fromRight)
 
 class Within a where
     isWithin' :: a -> a -> Bool
@@ -312,3 +315,15 @@ intersect (Options l) (Options r)
     isBottom :: Type -> Bool
     isBottom Top = False
     isBottom (Options os) = Set.null os
+
+resolveType :: Applicative m => (a -> m Type) -> Type' a -> m Type
+resolveType _ Top = pure Top
+resolveType lookupF (Options xs) = mconcat <$> traverse resolveBaseType (Set.toList xs)
+    where
+        resolveBaseType (SimpleType x) = pure $ Options $ Set.singleton $ SimpleType x
+        resolveBaseType (ConstType x) = pure $ Options $ Set.singleton $ ConstType x
+        resolveBaseType (ArrayType x) = Options . Set.singleton . ArrayType <$> resolveType lookupF x
+        resolveBaseType (TupleType x) = Options . Set.singleton . TupleType <$> traverse (resolveType lookupF) x
+        resolveBaseType (CodeType x y) = (\a b -> Options $ Set.singleton $ CodeType a b) <$> traverse (resolveType lookupF) x <*> resolveType lookupF y
+        resolveBaseType (RecordType x) = Options . Set.singleton . RecordType <$> traverse (resolveType lookupF) x
+        resolveBaseType (ExtraType x) = lookupF x

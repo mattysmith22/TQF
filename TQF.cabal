@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 459052eec46acdff943b5354a3ac8dbedd9af6551534695f7f6e2a97a0098a7d
+-- hash: d26265243a50980657d53006fc703a6444fc0e3b81b01d77f875ef3ea277c479
 
 name:           TQF
 version:        0.1.0.0
@@ -31,9 +31,10 @@ library
       Data.Zip
       SQF.Commands
       TQF.AST
+      TQF.Environment
       TQF.Lexer
-      TQF.ModuleResolver
       TQF.Parser
+      TQF.Resolve
       TQF.Type
   other-modules:
       Paths_TQF
@@ -51,6 +52,7 @@ library
     , extra
     , mtl
     , split
+    , transformers
   default-language: Haskell2010
 
 executable TQF-exe
@@ -74,6 +76,7 @@ executable TQF-exe
     , mtl
     , pretty-simple
     , split
+    , transformers
   default-language: Haskell2010
 
 test-suite TQF-test
@@ -83,7 +86,6 @@ test-suite TQF-test
       Data.ZipSpec
       Helpers
       TQF.LexerSpec
-      TQF.ModuleResolverSpec
       TQF.ParserSpec
       TQF.TypeSpec
       Paths_TQF
@@ -104,4 +106,5 @@ test-suite TQF-test
     , hspec
     , mtl
     , split
+    , transformers
   default-language: Haskell2010

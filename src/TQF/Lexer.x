@@ -115,6 +115,7 @@ data Token
   | TokenType
   | TokenFunction
   | TokenGlobal
+  | TokenCommand
   | TokenAssign
   | TokenTop
   | TokenOpenP
@@ -170,6 +171,7 @@ unLex TokenReturn = "return"
 unLex TokenType = "type"
 unLex TokenFunction = "function"
 unLex TokenGlobal = "global"
+unLex TokenCommand = "command"
 unLex TokenAssign = "="
 unLex TokenOpenP = "("
 unLex TokenOpenPTuple = "'("

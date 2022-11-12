@@ -6,6 +6,6 @@ import qualified Last.Module as Rename -- All of "Last.Module"'s contents are im
 
 
 --Working on compiling functions only first
-function string functionName(string arg) {
+function functionName(string arg): string {
     return "test";
 }

@@ -28,6 +28,7 @@ import Data.List
     function { TokenFunction }
     global { TokenGlobal }
     top { TokenTop }
+    command { TokenCommand }
     '=' { TokenAssign }
     '(' { TokenOpenP }
     '\'(' { TokenOpenPTuple }
@@ -59,6 +60,7 @@ import Data.List
     string { TokenString $$ }
     lidentSimple { TokenIdentLower (LIdent [] $$)}
     lident { TokenIdentLower $$ }
+    uidentSimple { TokenIdentUpper (UIdent [] $$)}
     uident { TokenIdentUpper $$ }
     simpletype { TokenSimpleType $$ }
 
@@ -73,7 +75,7 @@ import Data.List
 
 %%
 
-Module : ModuleDeclaration Imports Declarations {Module $1 $2 (reverse $3)}
+Module : ModuleDeclaration Imports Declarations {Module $1 $2 (reverse $3) :: Module Parsed}
 
 ModuleDeclaration : module ModuleIdent where {$2}
 
@@ -98,7 +100,7 @@ Type : simpletype { Type.simpleType $1 }
     | top { Type.top }
     | Type '|' Type { $1 <> $3 }
     | '(' Type ')' { $2 }
-    | uident { Type.extra $1 }
+    | Uident { Type.extra $1 }
 
     -- Tuple definition
     | '(' ')' { Type.tuple [] }
@@ -118,7 +120,14 @@ TypeRecordFields : {- empty -} {[]}
 
 TypeRecordField : lidentSimple ':' Type { (unVarName $1, $3) }
 
-Declaration : function Type lidentSimple '(' FunctionDeclArguments ')' CodeBlock { FunctionDecl $3 $2 $5 (CodeBlock $7) }
+Declaration : function lidentSimple '(' FunctionDeclArguments ')' ':' Type CodeBlock { FunctionDecl $2 $7 $4 (CodeBlock $8) }
+    | type uidentSimple '=' Type { TypeDecl $2 $4 }
+    | global lidentSimple ':' Type { VariableDecl $4 $2 }
+    | command string CommandArgs ':' Type { CommandDecl $2 $5 $3 }
+
+CommandArgs : '(' ')' { CommandNular }
+    | '(' Type ')' { CommandUnary $2 }
+    | '(' Type ',' Type ')' { CommandBinary $2 $4 }
 
 FunctionDeclArguments : {- empty -} {[]}
     | FunctionDeclArgument {[$1]}
@@ -146,7 +155,7 @@ StatementNoSemicolon : StatementNoEndSemicolon {$1}
     | StatementEndSemicolon {$1}
 
 StatementEndSemicolon : Lident LidentStatement {$2 $1}
-    | Type lidentSimple VariableDeclarationAssignment {VariableDeclaration $1 $2 $3}
+    | lidentSimple ':' Type VariableDeclarationAssignment {VariableDeclaration $3 $1 $4}
     | do StatementNoSemicolon while '(' Expr ')' {DoWhile $5 $2}
     | return ReturnValue {Return $2}
 
@@ -190,10 +199,13 @@ Expr : Expr '+' Expr {BinaryOperator AddOp $1 $3}
     | '(' Expr ')' {$2}
     | '(' Type ')' Expr {Cast $2 $4}
 
-ModuleIdent : uident {typeToModuleIdent $1}
+ModuleIdent : Uident {typeToModuleIdent $1}
 
 Lident : lidentSimple { LIdent [] $1 }
     | lident { $1 }
+
+Uident : uidentSimple { UIdent [] $1 }
+    | uident { $1 }
 
 {
 typeToModuleIdent :: UIdent -> ResolveableModule
