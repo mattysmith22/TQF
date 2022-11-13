@@ -36,7 +36,7 @@ spec = modifyMaxSuccess (const 10000) $ do
         it "(property) items should always be within their merged counterpart" $
             forAll (arbitrary :: Gen (Type, Type)) (\(l, r) -> l `isWithin` (l <> r) && r `isWithin` (l <> r))
         it "(property) transitivity" $
-            forAll (arbitrary :: Gen (Type, Type, Type)) (\(a, b, c) -> (a `isWithin` b && b `isWithin` b) `implies` (a `isWithin` c))
+            forAll (arbitrary :: Gen (Type, Type, Type)) (\(a, b, c) -> (a `isWithin` b && b `isWithin` c) `implies` (a `isWithin` c))
         it "(property) reflexivity" $
             forAll (arbitrary :: Gen Type) (\x -> x `isWithin` x)
         describe "Simple type" $ do

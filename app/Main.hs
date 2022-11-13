@@ -10,6 +10,8 @@ import           TQF.Lexer                     as Lexer
 import           TQF.Parser                    as Parser
 import           TQF.Resolve                   as Resolve
 import           TQF.TypeCheck                 as TypeCheck
+import qualified TQF.CodeGen                   as CodeGen
+import qualified SQF.AST                       as SQF
 
 main :: IO ()
 main = do
@@ -18,11 +20,14 @@ main = do
   case args of
     [filePath] -> do
       text <- readFile filePath
+      
       let lexed = Lexer.alexScanTokens text
       let parsed = either error id $ Parser.parse lexed
       resolved <- either (error . show) id <$> resolveModule (const $ error "Cannot parse modules") parsed
-      let typeChecked = either (error . show) id $ TypeCheck.typeCheck resolved
-      pPrint resolved
+      case TypeCheck.typeCheck resolved of
+        (Left err) -> print err
+        (Right ()) -> putStrLn "Passed TypeCheck"
+      putStrLn $ SQF.prettyPrint $ CodeGen.codeGen resolved
     _ -> do
       putStrLn "Please enter file name to parse"
       exitWith (ExitFailure 1)

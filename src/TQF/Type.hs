@@ -364,6 +364,6 @@ validateDirectCall possibleSigs args = if null matchedTypes then Left () else Ri
             let isValid = case (reqArgs, args) of
                     (CommandNular, []) -> True
                     (CommandUnary rx, [x]) -> x `isWithin` rx
-                    (CommandBinary rx ry, [x, y]) -> x `isWithin` rx && x `isWithin` ry
+                    (CommandBinary rx ry, [x, y]) -> x `isWithin` rx && y `isWithin` ry
                     (_,_) -> False
             in if isValid then Just ret else Nothing

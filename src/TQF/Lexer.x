@@ -78,7 +78,7 @@ tokens :-
   $digit+ { tok (TokenNum . read) }
   $digit+\.$digit+ { tok (TokenNum . read) }
   "0x"[0-9a-f]+						{ tok (TokenNum . read) }
-  \"@string*\" { tok (TokenString) }
+  \"@string*\" { tok (TokenString . init . tail) }
 -- Operators
   "+"		{ constToken TokenAdd }
   "-"		{ constToken TokenSub }

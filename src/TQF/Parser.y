@@ -159,7 +159,6 @@ StatementNoSemicolon : StatementNoEndSemicolon {$1}
 
 StatementEndSemicolon : Lident LidentStatement {$2 $1}
     | lidentSimple ':' Type VariableDeclarationAssignment {VariableDeclaration $3 $1 $4}
-    | do StatementNoSemicolon while '(' Expr ')' {DoWhile $5 $2}
     | return ReturnValue {Return $2}
 
 ReturnValue : {- empty -} {Nothing}

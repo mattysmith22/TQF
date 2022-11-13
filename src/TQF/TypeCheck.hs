@@ -67,11 +67,6 @@ typeCheckStatement env WhileLoop{..} = do
     typeOfCond <- typeCheckExpr whileLoopCondition
     typeOfCond `shouldBeWithin` simpleType Bool
     typeCheckStatement (notTopLevel env) whileLoopStatement
-typeCheckStatement env DoWhile{..} = do
-    shouldNotBeTopLevelStatement env
-    typeOfCond <- typeCheckExpr doWhileCondition
-    typeOfCond `shouldBeWithin` simpleType Bool
-    typeCheckStatement (notTopLevel env) doWhileStatement
 typeCheckStatement env (Return Nothing) =
     simpleType Nil `shouldBeWithin` returnType env
 typeCheckStatement env (Return (Just x)) = do
@@ -101,7 +96,7 @@ typeCheckExpr (StringLiteral x) = Right (constString x)
 typeCheckExpr (ArrayExpr xs) = do
     types <- traverse typeCheckExpr xs
     return $ array $ mconcat types
-typeCheckExpr (DirectCall cmds exprs) = do
+typeCheckExpr (DirectCall (_,cmds) exprs) = do
     types <- traverse typeCheckExpr exprs
     left (const $ NoValidCommand types) $ validateDirectCall cmds types
 typeCheckExpr (Cast typ x) = do

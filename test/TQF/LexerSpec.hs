@@ -111,10 +111,10 @@ spec = do
       it "Should lex hex numbers" $ do
         "0x24af" `shouldLex` [TokenNum 9391]
     describe "String" $ do
-      it "Should lex the empty string" $ "\"\"" `shouldLex` [TokenString "\"\""]
+      it "Should lex the empty string" $ "\"\"" `shouldLex` [TokenString ""]
       it "Should lex a string with normal text inside"
         $           "\"test 123 . <= while\""
-        `shouldLex` [TokenString "\"test 123 . <= while\""]
+        `shouldLex` [TokenString "test 123 . <= while"]
       it "Should lex a string with escaped characters inside"
         $           "\"test \\t \\n \\\"\""
-        `shouldLex` [TokenString "\"test \\t \\n \\\"\""]
+        `shouldLex` [TokenString "test \\t \\n \\\""]

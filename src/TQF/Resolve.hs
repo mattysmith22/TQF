@@ -144,13 +144,6 @@ resolveStatement env WhileLoop{..} = do
         { whileLoopCondition = expr
         , whileLoopStatement = stmt
         }
-resolveStatement env DoWhile{..} = do
-    expr <- resolveExpr env doWhileCondition 
-    stmt <- fst <$> resolveStatement env doWhileStatement
-    return $ (,env) DoWhile
-        { doWhileCondition = expr
-        , doWhileStatement = stmt
-        }
 resolveStatement env (Return x) = do
     expr <- traverse (resolveExpr env) x
     return (Return expr, env)

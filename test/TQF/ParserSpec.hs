@@ -81,7 +81,7 @@ statementSpec = do
   describe "FunctionDecl call" $ do
     it "Should parse a normal function call"
       $             "func(1,\"test\");"
-      `shouldParse` [FunctionCall (toIdent "func") [NumLiteral 1, StringLiteral "\"test\""]]
+      `shouldParse` [FunctionCall (toIdent "func") [NumLiteral 1, StringLiteral "test"]]
     it "Should parse an empty function call"
       $             "func();"
       `shouldParse` [FunctionCall (toIdent "func") []]
@@ -139,10 +139,6 @@ statementSpec = do
     it "Should parse a while loop that doesn't use code blocks"
       $             "while (true) return 1;"
       `shouldParse` [WhileLoop (BoolLiteral True) (Return $ Just $ NumLiteral 1)]
-  describe "Do While Statement" $ do
-    it "Should parse a normal Do While statement"
-      $             "do {return 1;} while (true);"
-      `shouldParse` [DoWhile (BoolLiteral True) (CodeBlock [Return $ Just $ NumLiteral 1])]
  where
   shouldParse inp ast =
     parse
@@ -173,10 +169,10 @@ expressionSpec = do
       "0.15" `shouldParse` NumLiteral 0.15
     it "Should parse normal hex literals" $ "0x1a5" `shouldParse` NumLiteral 421
     it "Should parse string literals" $ do
-      "\"Test\"" `shouldParse` StringLiteral "\"Test\""
-      "\"String with Sp@ces\"" `shouldParse` StringLiteral "\"String with Sp@ces\""
+      "\"Test\"" `shouldParse` StringLiteral "Test"
+      "\"String with Sp@ces\"" `shouldParse` StringLiteral "String with Sp@ces"
       "\"String \\n with \\\" escape \\t codes\""
-        `shouldParse` StringLiteral "\"String \\n with \\\" escape \\t codes\""
+        `shouldParse` StringLiteral "String \\n with \\\" escape \\t codes"
   describe "Unary Operators" $ do
     it "Should parse negate operators" $ do
       "-(20)" `shouldParse` DirectCall "-" [NumLiteral 20]
@@ -209,12 +205,12 @@ expressionSpec = do
     it "Should parse multiple elements of an array" $ "[1, 2]" `shouldParse` ArrayExpr
       [NumLiteral 1, NumLiteral 2]
   describe "Direct calls" $ do
-    it "Should parse a nular direct call" $ "<command>()" `shouldParse` DirectCall "command" []
-    it "Should parse a unary direct call" $ "<command>(1)" `shouldParse` DirectCall
-      "command"
+    it "Should parse a nular direct call" $ "<sqfCommand>()" `shouldParse` DirectCall "sqfCommand" []
+    it "Should parse a unary direct call" $ "<sqfCommand>(1)" `shouldParse` DirectCall
+      "sqfCommand"
       [NumLiteral 1]
-    it "Should parse a binary direct call" $ "<command>(1,2)" `shouldParse` DirectCall
-      "command"
+    it "Should parse a binary direct call" $ "<sqfCommand>(1,2)" `shouldParse` DirectCall
+      "sqfCommand"
       [NumLiteral 1, NumLiteral 2]
   describe "Type cast" $ it "Should parse a type cast" $ "(NS.Type)1" `shouldParse` Cast
     (extra $ typN' ["NS"] "Type")

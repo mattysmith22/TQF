@@ -26,12 +26,14 @@ data Environment = Environment
     , envUIdents :: Map UIdent (CanCollide Type)
     , envLIdents :: Map (ResolveableModule, VarName) (CanCollide ModLIdentDecl)
     }
+    deriving (Show, Eq)
 
 emptyEnv :: Environment
 emptyEnv = Environment mempty mempty mempty
 
 data CanCollide a = NoCollision a
     | Collision
+    deriving (Show, Eq)
 
 data EnvError = EnvNotFound (Either UIdent LIdent)
     | EnvCollision (Either UIdent LIdent)
@@ -55,8 +57,8 @@ lookupLIdent Environment{..} x@(LIdent modl (name:|rest)) = flip ResolvedLIdent 
 addLIdent :: (ResolveableModule, VarName) -> ModLIdentDecl -> Environment -> Environment
 addLIdent lident decl env = env { envLIdents = Map.insert lident (NoCollision decl) $ envLIdents env }
 
-lookupCommand :: Environment -> String -> [(CommandArgs Type, Type)]
-lookupCommand Environment{..} name = fromMaybe [] $ Map.lookup name envCommands
+lookupCommand :: Environment -> String -> (String, [(CommandArgs Type, Type)])
+lookupCommand Environment{..} name = (name,) $ fromMaybe [] $ Map.lookup name envCommands
 
 addCommand :: String -> (CommandArgs Type, Type) -> Environment -> Environment
 addCommand name commandArgs env = env { envCommands = Map.insertWith (<>) name [commandArgs] (envCommands env)}

@@ -26,7 +26,7 @@ type family LIdentF a where
 
 type family CommandF a where
   CommandF Parsed = String
-  CommandF Resolved = [(CommandArgs Type, Type)]
+  CommandF Resolved = (String, [(CommandArgs Type, Type)])
 
 type ValidASTLevel a = (Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a), Show (CommandF a), Eq (CommandF a))
 
@@ -104,10 +104,6 @@ data Statement a =
     | WhileLoop {
         whileLoopCondition:: Expr a,
         whileLoopStatement:: Statement a
-    }
-    | DoWhile {
-        doWhileCondition:: Expr a,
-        doWhileStatement:: Statement a
     }
     | Return (Maybe (Expr a))
 
