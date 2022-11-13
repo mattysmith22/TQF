@@ -60,6 +60,15 @@ addTopLevelDeclToEnv mod env CommandDecl{..} = do
     ret <- resolveType env commandReturnType
     args <- traverse (resolveType env) commandArgs
     return $ addCommand commandName (args, ret) env
+addTopLevelDeclToEnv mod env ExternalFunctionDecl{..} = do
+    ret <- resolveType env functionType
+    args <- traverse (resolveType env . fst) functionArguments
+    let toAdd = ModExternalReference functionSQFName (Type.code args ret)
+    return $ addLIdent ([], functionName) toAdd env
+addTopLevelDeclToEnv mod env ExternalVariableDecl{..} = do
+    typ <- resolveType env variableType
+    let toAdd = ModExternalReference variableSQFName typ
+    return $ addLIdent ([], variableName) toAdd env
 
 resolveDeclaration :: Environment -> Declaration Parsed -> Either EnvError (Declaration Resolved)
 resolveDeclaration env FunctionDecl{..} = do
@@ -94,6 +103,22 @@ resolveDeclaration env CommandDecl{..} = do
         { commandName = commandName
         , commandReturnType = ret
         , commandArgs = args
+        }
+resolveDeclaration env ExternalFunctionDecl{..} = do
+    ret <- resolveType env functionType
+    args <- traverse (firstM $ resolveType env) functionArguments
+    return ExternalFunctionDecl
+        { functionName = functionName
+        , functionType = ret
+        , functionArguments = args
+        , functionSQFName = functionSQFName
+        }
+resolveDeclaration env ExternalVariableDecl{..} = do
+    typ <- resolveType env variableType
+    return ExternalVariableDecl
+        { variableName = variableName
+        , variableType = typ
+        , variableSQFName = variableSQFName
         }
 
 resolveStatement :: Environment -> Statement Parsed -> Either EnvError (Statement Resolved, Environment)
@@ -147,6 +172,8 @@ resolveStatement env WhileLoop{..} = do
 resolveStatement env (Return x) = do
     expr <- traverse (resolveExpr env) x
     return (Return expr, env)
+resolveStatement env (DirectCallStmt x args) = do
+    (,env) . DirectCallStmt (lookupCommand env x) <$> traverse (resolveExpr env) args
 
 resolveExpr :: Environment -> Expr Parsed -> Either EnvError (Expr Resolved)
 resolveExpr env (Variable x) =

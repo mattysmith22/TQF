@@ -32,6 +32,7 @@ import SQF.Commands
     global { TokenGlobal }
     top { TokenTop }
     command { TokenCommand }
+    external { TokenExternal }
     '=' { TokenAssign }
     '(' { TokenOpenP }
     '\'(' { TokenOpenPTuple }
@@ -127,6 +128,8 @@ Declaration : function lidentSimple '(' FunctionDeclArguments ')' ':' Type CodeB
     | type uidentSimple '=' Type { TypeDecl $2 $4 }
     | global lidentSimple ':' Type { VariableDecl $4 $2 }
     | command string CommandArgs ':' Type { CommandDecl $2 $5 $3 }
+    | external function lidentSimple '(' FunctionDeclArguments ')' ':' Type '=' string { ExternalFunctionDecl $3 $8 $5 $10 }
+    | external lidentSimple ':' Type '=' string { ExternalVariableDecl $2 $4 $6 }
 
 CommandArgs : '(' ')' { CommandNular }
     | '(' Type ')' { CommandUnary $2 }
@@ -160,6 +163,7 @@ StatementNoSemicolon : StatementNoEndSemicolon {$1}
 StatementEndSemicolon : Lident LidentStatement {$2 $1}
     | lidentSimple ':' Type VariableDeclarationAssignment {VariableDeclaration $3 $1 $4}
     | return ReturnValue {Return $2}
+    | '<' lidentSimple '>' '(' ExprList ')' {DirectCallStmt (unVarName $2) $5}
 
 ReturnValue : {- empty -} {Nothing}
     | Expr {Just $1}

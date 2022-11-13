@@ -48,6 +48,7 @@ tokens :-
   "function" { constToken TokenFunction }
   "global" { constToken TokenGlobal}
   "command" { constToken TokenCommand }
+  "external" { constToken TokenExternal }
 -- Types
   "top" { constToken $ TokenTop }
   "string" { constToken $ TokenSimpleType  Type.String}
@@ -114,6 +115,7 @@ data Token
   | TokenFunction
   | TokenGlobal
   | TokenCommand
+  | TokenExternal
   | TokenAssign
   | TokenTop
   | TokenOpenP
@@ -170,6 +172,7 @@ unLex TokenType = "type"
 unLex TokenFunction = "function"
 unLex TokenGlobal = "global"
 unLex TokenCommand = "command"
+unLex TokenExternal = "external"
 unLex TokenAssign = "="
 unLex TokenOpenP = "("
 unLex TokenOpenPTuple = "'("

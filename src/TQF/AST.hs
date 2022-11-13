@@ -61,6 +61,15 @@ data Declaration a = FunctionDecl
   { commandName :: String
   , commandReturnType :: TypeDeclF a
   , commandArgs :: CommandArgs (TypeDeclF a)
+  } | ExternalFunctionDecl
+  { functionName          :: VarName
+  , functionType          :: TypeDeclF a
+  , functionArguments     :: [(TypeDeclF a, VarName)]
+  , functionSQFName       :: String
+  } | ExternalVariableDecl
+  { variableName          :: VarName
+  , variableType          :: TypeDeclF a
+  , variableSQFName       :: String
   }
     
 deriving instance ValidASTLevel a => Show (Declaration a)
@@ -105,6 +114,10 @@ data Statement a =
         whileLoopCondition:: Expr a,
         whileLoopStatement:: Statement a
     }
+    | DirectCallStmt {
+        directCommand :: CommandF a,
+        directArgs :: [Expr a]
+    }
     | Return (Maybe (Expr a))
 
 deriving instance ValidASTLevel a => Show (Statement a)
@@ -147,6 +160,7 @@ newtype TypeName = TypeName {unTypeName:: String}
 data ModLIdentDecl = ModFunction (ResolveableModule, VarName) [Type] Type
   | ModGlobalVariable (ResolveableModule, VarName) Type
   | ModLocalVariable VarName Type
+  | ModExternalReference String Type
   deriving (Show, Eq)
 
 instance Show TypeName where

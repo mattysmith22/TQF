@@ -28,6 +28,8 @@ typeCheckDeclaration  FunctionDecl{..} = typeCheckStatement (Env functionType Tr
 typeCheckDeclaration VariableDecl{..} = return ()
 typeCheckDeclaration TypeDecl{..} = return ()
 typeCheckDeclaration CommandDecl{..} = return ()
+typeCheckDeclaration ExternalFunctionDecl{..} = return ()
+typeCheckDeclaration ExternalVariableDecl{..} = return ()
 
 data Env = Env
     { returnType :: Type
@@ -72,6 +74,10 @@ typeCheckStatement env (Return Nothing) =
 typeCheckStatement env (Return (Just x)) = do
     exprType <- typeCheckExpr x
     exprType `shouldBeWithin` returnType env
+typeCheckStatement env (DirectCallStmt (_,cmds) exprs) = do
+    types <- traverse typeCheckExpr exprs
+    left (const $ NoValidCommand types) $ validateDirectCall cmds types
+    return ()
 
 typeCheckLIdent :: ResolvedLIdent -> Either TypeCheckErr Type
 typeCheckLIdent (ResolvedLIdent initial fields) = foldrM go (identDeclToType initial) fields
@@ -83,6 +89,7 @@ typeCheckLIdent (ResolvedLIdent initial fields) = foldrM go (identDeclToType ini
         identDeclToType (ModFunction _ args ret) = code args ret
         identDeclToType (ModGlobalVariable _ x) = x
         identDeclToType (ModLocalVariable _ x) = x
+        identDeclToType (ModExternalReference _ x) = x
 
 typeCheckExpr :: Expr Resolved -> Either TypeCheckErr Type
 typeCheckExpr (Variable x) = typeCheckLIdent x

@@ -8,7 +8,7 @@ import           Data.List (intercalate)
 codeGen :: Module Resolved -> [SQF.Statement]
 codeGen Module{..} = concatMap (codeGenDecl moduleName) moduleDeclarations
 
-data CodeGenEnv = CodeGenEnv
+newtype CodeGenEnv = CodeGenEnv
     { envFunction :: String
     }
 
@@ -57,6 +57,7 @@ codeGenStatement' env (Return Nothing) =
 codeGenStatement' env (Return (Just expr)) =
     let retVal = codeGenExpr expr
     in Right $ SQF.BinOp "breakOut" retVal $ SQF.StringLit $ envFunction env
+codeGenStatement' env (DirectCallStmt cmd args) = Right $ codeGenExpr (DirectCall cmd args)
 
 codeGenExpr :: Expr Resolved -> SQF.Expr
 codeGenExpr (Variable lIdent) = getLIdent lIdent
@@ -85,3 +86,4 @@ sqfNameFor (ModGlobalVariable (path, name) _)
     = intercalate "_" (fmap unTypeName path ++ [unVarName name])
 sqfNameFor (ModLocalVariable name _)
     = "_" ++ unVarName name
+sqfNameFor (ModExternalReference name _) = name

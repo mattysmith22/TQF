@@ -73,6 +73,21 @@ declarationSpec = do
                                  [(simpleType String, l "input2")]
                                  (CodeBlock [])
                   ]
+  it "Should parse an external function declarations"
+    $ "external function functionName(nil input, num input2): bool = \"test\""
+    `shouldParse` [ ExternalFunctionDecl
+        (l "functionName")
+        (simpleType Bool)
+        [(simpleType Nil, l "input"), (simpleType Number, l "input2")]
+        "test"
+        ]
+  it "Should parse an external variable declaration"
+    $ "external varName: string = \"test\""
+    `shouldParse` [ ExternalVariableDecl
+        (l "varName")
+        (simpleType String)
+        "test"
+        ]
  where
   shouldParse inp ast = parse (alexScanTokens "module Test where" ++ alexScanTokens inp)
     `shouldBe` Right (Module [u "Test"] [] ast)
