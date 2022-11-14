@@ -1,13 +1,21 @@
 {
 module TQF.Lexer
   ( Token(..)
+  , Alex(..)
   , unLex
-  , alexScanTokens
+  , alexEOF
+  , alexMonadScan
+  , AlexPosn(..)
+  , alexMonadScanAnnot
+  , alexError
+  , alexGetInput
+  , runAlex
   ) where
 
 import Prelude hiding (lex)
 import Control.Monad (liftM)
 import TQF.AST
+import TQF.AST.Annotated
 import qualified TQF.Type as Type
 import Data.List.Split
 import Data.Char (isLower)
@@ -16,7 +24,7 @@ import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.List (break)
 }
 
-%wrapper "basic"
+%wrapper "monad"
 
 @escape = \\$printable
 @string = [^\"\\] | @escape
@@ -153,9 +161,6 @@ data Token
   | TokenEOF
   deriving ( Show, Eq )
 
-tok = ($)
-constToken = const
-
 -- For nice parser error messages.
 unLex :: Token -> String
 unLex TokenModule = "module"
@@ -211,4 +216,31 @@ unLex TokenEOF = "<EOF>"
 
 unLexModules :: ResolveableModule -> String
 unLexModules = concat . map ((++".") . unTypeName)
+
+alexEOF :: Alex Token
+alexEOF = return TokenEOF
+
+-- | Custom scan function which annotates every lexed token with the range in which it occurs within the test
+alexMonadScanAnnot :: Alex (Annot Token)
+alexMonadScanAnnot = do
+  inp__ <- alexGetInput
+  let (AlexPn _ lineStart colStart,_,_,_) = inp__
+  sc <- alexGetStartCode
+  case alexScan inp__ sc of
+    AlexEOF -> (Annot (Range (Pos lineStart colStart) (Pos lineStart colStart))) <$> alexEOF
+    AlexError ((AlexPn _ line column),_,_,_) -> alexError $ "lexical error at line " ++ (show line) ++ ", column " ++ (show column)
+    AlexSkip  inp__' _len -> do
+        alexSetInput inp__'
+        alexMonadScanAnnot
+    (AlexToken endInp len action) -> do
+        let (AlexPn _ lineEnd colEnd,_,_,_) = endInp
+        alexSetInput endInp
+        let range = Range (Pos lineStart colStart) (Pos lineEnd colEnd)
+        Annot range <$> action (ignorePendingBytes inp__) len
+
+
+tok :: (String -> Token) -> AlexAction Token
+tok f (_,_,_,inp) n = pure $ f (take n inp)
+constToken :: Token -> AlexAction Token
+constToken x _ _ = pure x
 }

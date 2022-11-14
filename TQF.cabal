@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7bef475e34ee8e04e606cca8621406691d1ad01ea2d37062d7cfaa8d1416178d
+-- hash: 8e9be06db5afc4df6bd107a448076b32fcc3634bdaf454cc7d6cf76c55329cb6
 
 name:           TQF
 version:        0.1.0.0
@@ -32,6 +32,7 @@ library
       SQF.AST
       SQF.Commands
       TQF.AST
+      TQF.AST.Annotated
       TQF.CodeGen
       TQF.Environment
       TQF.Lexer

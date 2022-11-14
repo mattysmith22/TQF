@@ -3,15 +3,25 @@ module TQF.LexerSpec
   ) where
 
 import           TQF.AST
+import           TQF.AST.Annotated
 import           TQF.Lexer
 import           Test.Hspec
 import           Data.List.NonEmpty (NonEmpty((:|)))
 
+unfoldWhileM :: Monad m => (a -> Bool) -> m a -> m [a]
+unfoldWhileM p m = loop id
+    where
+        loop f = do
+            x <- m
+            if p x
+                then loop (f . (x:))
+                else return (f [])
+
 shouldLex :: String -> [Token] -> Expectation
-shouldLex input expectedTokens = alexScanTokens input `shouldBe` expectedTokens
+shouldLex inp expectedTokens = either error id (runAlex inp (unfoldWhileM (/=TokenEOF) alexMonadScan)) `shouldBe` expectedTokens
 
 shouldNotLex :: String -> [Token] -> Expectation
-shouldNotLex input expectedTokens = alexScanTokens input `shouldNotBe` expectedTokens
+shouldNotLex input expectedTokens = either error id (runAlex input (unfoldWhileM (/=TokenEOF) alexMonadScan)) `shouldNotBe` expectedTokens
 
 u :: String -> Token
 u = TokenIdentUpper . toIdent

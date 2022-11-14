@@ -5,34 +5,35 @@ module TQF.TypeCheck
     ) where
 
 import TQF.AST
+import TQF.AST.Annotated
 import TQF.Type
 import Control.Error.Util (note)
 import Control.Monad (when)
 import Control.Arrow
 import Data.Foldable (foldrM, traverse_)
 
-data TypeCheckErr = NotWithin Type Type
-     | NoField VarName Type
+data TypeCheckErr = NotWithin (Annot Type) (Annot Type)
+     | NoField VarName (Annot Type)
      | BadTopLevel
-     | NoValidCommand [Type]
+     | NoValidCommand String [Annot Type]
      deriving (Show, Eq)
 
-shouldBeWithin :: Type -> Type -> Either TypeCheckErr ()
-shouldBeWithin small large = if small `isWithin` large then return () else Left $ NotWithin small large
+shouldBeWithin :: Annot Type -> Annot Type -> Either TypeCheckErr ()
+shouldBeWithin s@(Annot _ small) l@(Annot _ large) = if small `isWithin` large then return () else Left $ NotWithin s l
 
 typeCheck :: Module Resolved -> Either TypeCheckErr ()
 typeCheck Module{..} = mapM_ typeCheckDeclaration moduleDeclarations
 
 typeCheckDeclaration :: Declaration Resolved -> Either TypeCheckErr ()
-typeCheckDeclaration  FunctionDecl{..} = typeCheckStatement (Env functionType True) functionContent
-typeCheckDeclaration VariableDecl{..} = return ()
-typeCheckDeclaration TypeDecl{..} = return ()
-typeCheckDeclaration CommandDecl{..} = return ()
-typeCheckDeclaration ExternalFunctionDecl{..} = return ()
-typeCheckDeclaration ExternalVariableDecl{..} = return ()
+typeCheckDeclaration (Annot _ FunctionDecl{..}) = typeCheckStatement (Env functionType True) functionContent
+typeCheckDeclaration (Annot _ VariableDecl{..}) = return ()
+typeCheckDeclaration (Annot _ TypeDecl{..}) = return ()
+typeCheckDeclaration (Annot _ CommandDecl{..}) = return ()
+typeCheckDeclaration (Annot _ ExternalFunctionDecl{..}) = return ()
+typeCheckDeclaration (Annot _ ExternalVariableDecl{..}) = return ()
 
 data Env = Env
-    { returnType :: Type
+    { returnType :: Annot Type
     , topLevelStatement :: Bool
     }
 
@@ -43,47 +44,50 @@ notTopLevel :: Env -> Env
 notTopLevel e = e {topLevelStatement = False}
 
 typeCheckStatement :: Env -> Statement Resolved -> Either TypeCheckErr ()
-typeCheckStatement env (CodeBlock stmts) = traverse_ (typeCheckStatement (notTopLevel env)) stmts
-typeCheckStatement env VariableDeclaration{..} = do
+typeCheckStatement env (Annot r x) = typeCheckStatement' env r x
+
+typeCheckStatement' :: Env -> Range -> Statement_ Resolved -> Either TypeCheckErr ()
+typeCheckStatement' env _ (CodeBlock stmts) = traverse_ (typeCheckStatement (notTopLevel env)) stmts
+typeCheckStatement' env _ VariableDeclaration{..} = do
     shouldNotBeTopLevelStatement env
-    exprType <- maybe (return $ simpleType Nil) typeCheckExpr varDeclValue
+    exprType <- maybe (return $ Annot (pos varDeclType) $ simpleType Nil) typeCheckExpr varDeclValue
     exprType `shouldBeWithin` varDeclType
-typeCheckStatement env FunctionCall{..} = do
+typeCheckStatement' env _ FunctionCall{..} = do
     shouldNotBeTopLevelStatement env
     typeOfFunc <- typeCheckLIdent functionCallName
     args <- traverse typeCheckExpr functionCallArgs
-    typeOfFunc `shouldBeWithin` code args top
-typeCheckStatement env Assignment{..} = do
+    typeOfFunc `shouldBeWithin` Annot (foldMap pos args) (code (unAnnot <$> args) top)
+typeCheckStatement' env _ Assignment{..} = do
     shouldNotBeTopLevelStatement env
     typeOfVar <- typeCheckLIdent assignmentVariable
     exprType <- typeCheckExpr assignmentValue
     exprType `shouldBeWithin` typeOfVar
-typeCheckStatement env IfStatement{..} = do
+typeCheckStatement' env _ IfStatement{..} = do
     shouldNotBeTopLevelStatement env
     typeOfCond <- typeCheckExpr ifStatementCondition
-    typeOfCond `shouldBeWithin` simpleType Bool
+    typeOfCond `shouldBeWithin` Annot (pos ifStatementCondition) (simpleType Bool)
     typeCheckStatement (notTopLevel env) ifStatementTrue
     traverse_ (typeCheckStatement (notTopLevel env)) ifStatementFalse
-typeCheckStatement env WhileLoop{..} = do
+typeCheckStatement' env _ WhileLoop{..} = do
     shouldNotBeTopLevelStatement env
     typeOfCond <- typeCheckExpr whileLoopCondition
-    typeOfCond `shouldBeWithin` simpleType Bool
+    typeOfCond `shouldBeWithin` Annot (pos whileLoopCondition) (simpleType Bool)
     typeCheckStatement (notTopLevel env) whileLoopStatement
-typeCheckStatement env (Return Nothing) =
-    simpleType Nil `shouldBeWithin` returnType env
-typeCheckStatement env (Return (Just x)) = do
+typeCheckStatement' env r (Return Nothing) =
+     Annot r (simpleType Nil) `shouldBeWithin` returnType env
+typeCheckStatement' env _ (Return (Just x)) = do
     exprType <- typeCheckExpr x
     exprType `shouldBeWithin` returnType env
-typeCheckStatement env (DirectCallStmt (_,cmds) exprs) = do
+typeCheckStatement' env _ (DirectCallStmt (name,cmds) exprs) = do
     types <- traverse typeCheckExpr exprs
-    left (const $ NoValidCommand types) $ validateDirectCall cmds types
+    left (const $ NoValidCommand name types) $ validateDirectCall cmds (unAnnot <$> types)
     return ()
 
-typeCheckLIdent :: ResolvedLIdent -> Either TypeCheckErr Type
-typeCheckLIdent (ResolvedLIdent initial fields) = foldrM go (identDeclToType initial) fields
+typeCheckLIdent :: Annot ResolvedLIdent -> Either TypeCheckErr (Annot Type)
+typeCheckLIdent (Annot r (ResolvedLIdent initial fields)) = Annot r <$> foldrM go (identDeclToType initial) fields
     where
         go :: VarName -> Type -> Either TypeCheckErr Type
-        go field x = note (NoField field x) $ lookupField (unVarName field) x
+        go field x = note (NoField field (Annot r x)) $ lookupField (unVarName field) x
 
         identDeclToType :: ModLIdentDecl -> Type
         identDeclToType (ModFunction _ args ret) = code args ret
@@ -91,21 +95,21 @@ typeCheckLIdent (ResolvedLIdent initial fields) = foldrM go (identDeclToType ini
         identDeclToType (ModLocalVariable _ x) = x
         identDeclToType (ModExternalReference _ x) = x
 
-typeCheckExpr :: Expr Resolved -> Either TypeCheckErr Type
-typeCheckExpr (Variable x) = typeCheckLIdent x
-typeCheckExpr (FuncCall f args) = do
+typeCheckExpr :: Expr Resolved -> Either TypeCheckErr (Annot Type)
+typeCheckExpr (Annot r (Variable x)) = typeCheckLIdent x
+typeCheckExpr (Annot r (FuncCall f args)) = do
     func <- typeCheckLIdent f
     args' <- traverse typeCheckExpr args
-    left (uncurry NotWithin) $ validateFuncCall func args'
-typeCheckExpr (BoolLiteral x) = Right (constBool x)
-typeCheckExpr (NumLiteral x) = Right (constNumber x)
-typeCheckExpr (StringLiteral x) = Right (constString x)
-typeCheckExpr (ArrayExpr xs) = do
+    left (\(s,l) -> NotWithin (Annot (pos func) s) (Annot (foldMap pos args) l)) $ right (Annot r) $ validateFuncCall (unAnnot func) (unAnnot <$> args')
+typeCheckExpr (Annot r (BoolLiteral x)) = return $ Annot r (constBool x)
+typeCheckExpr (Annot r (NumLiteral x)) = return $ Annot r (constNumber x)
+typeCheckExpr (Annot r (StringLiteral x)) = return $ Annot r (constString x)
+typeCheckExpr (Annot r (ArrayExpr xs)) = do
     types <- traverse typeCheckExpr xs
-    return $ array $ mconcat types
-typeCheckExpr (DirectCall (_,cmds) exprs) = do
+    return $ Annot r $ array $ mconcat $ unAnnot <$> types
+typeCheckExpr (Annot r (DirectCall (name,cmds) exprs)) = do
     types <- traverse typeCheckExpr exprs
-    left (const $ NoValidCommand types) $ validateDirectCall cmds types
-typeCheckExpr (Cast typ x) = do
+    left (const $ NoValidCommand name types) $ right (Annot r) $ validateDirectCall cmds (unAnnot <$> types)
+typeCheckExpr (Annot _ (Cast typ x)) = do
     _ <- typeCheckExpr x
     return typ

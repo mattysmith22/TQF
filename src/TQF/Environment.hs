@@ -15,6 +15,7 @@ module TQF.Environment
 
 import Data.Map (Map)
 import TQF.AST
+import TQF.AST.Annotated
 import qualified Data.Map as Map
 import Data.List.NonEmpty
 import TQF.Type

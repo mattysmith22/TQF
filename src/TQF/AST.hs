@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, StandaloneDeriving, FlexibleContexts, UndecidableInstances, DataKinds, ConstraintKinds #-}
+{-# LANGUAGE TypeFamilies, StandaloneDeriving, FlexibleContexts, UndecidableInstances, DataKinds, ConstraintKinds, FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 module TQF.AST where
 
@@ -12,17 +12,18 @@ import           Data.List.Split (splitOn)
 import           Data.Maybe (fromJust)
 import           Control.Arrow
 import           SQF.Commands
+import           TQF.AST.Annotated
 
 data Parsed
 data Resolved
 
 type family TypeDeclF a where
-  TypeDeclF Parsed = ASTType
-  TypeDeclF Resolved = Type 
+  TypeDeclF Parsed = Annot ASTType
+  TypeDeclF Resolved = Annot Type 
 
 type family LIdentF a where
-  LIdentF Parsed = LIdent
-  LIdentF Resolved = ResolvedLIdent
+  LIdentF Parsed = Annot LIdent
+  LIdentF Resolved = Annot ResolvedLIdent
 
 type family CommandF a where
   CommandF Parsed = String
@@ -46,7 +47,9 @@ data ImportStatement = ImportStatement
   }
   deriving (Show, Eq)
 
-data Declaration a = FunctionDecl
+type Declaration a = Annot (Declaration_ a)
+
+data Declaration_ a = FunctionDecl
   { functionName          :: VarName
   , functionType          :: TypeDeclF a
   , functionArguments     :: [(TypeDeclF a, VarName)]
@@ -72,8 +75,8 @@ data Declaration a = FunctionDecl
   , variableSQFName       :: String
   }
     
-deriving instance ValidASTLevel a => Show (Declaration a)
-deriving instance ValidASTLevel a => Eq (Declaration a)
+deriving instance ValidASTLevel a => Show (Declaration_ a)
+deriving instance ValidASTLevel a => Eq (Declaration_ a)
 
 instance Functor CommandArgs where
   fmap _ CommandNular = CommandNular
@@ -89,8 +92,9 @@ instance Traversable CommandArgs where
   traverse f (CommandUnary x) = CommandUnary <$> f x
   traverse f (CommandBinary x y) = CommandBinary <$> f x <*> f y
 
+type Statement a = Annot (Statement_ a)
 
-data Statement a =
+data Statement_ a =
     CodeBlock [Statement a]
     | VariableDeclaration {
         varDeclType:: TypeDeclF a,
@@ -120,10 +124,12 @@ data Statement a =
     }
     | Return (Maybe (Expr a))
 
-deriving instance ValidASTLevel a => Show (Statement a)
-deriving instance ValidASTLevel a => Eq (Statement a)
+deriving instance ValidASTLevel a => Show (Statement_ a)
+deriving instance ValidASTLevel a => Eq (Statement_ a)
 
-data Expr a
+type Expr a = Annot (Expr_ a) 
+
+data Expr_ a
  = Variable (LIdentF a)
  | FuncCall (LIdentF a) [Expr a]
  | BoolLiteral Bool
@@ -133,8 +139,8 @@ data Expr a
  | DirectCall (CommandF a) [Expr a]
  | Cast (TypeDeclF a) (Expr a)
 
-deriving instance ValidASTLevel a => Show (Expr a)
-deriving instance ValidASTLevel a => Eq (Expr a)
+deriving instance ValidASTLevel a => Show (Expr_ a)
+deriving instance ValidASTLevel a => Eq (Expr_ a)
 
 data UnaryOperator = NotOp | NegOp
     deriving (Show, Eq)

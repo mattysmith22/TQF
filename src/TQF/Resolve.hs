@@ -4,6 +4,7 @@ module TQF.Resolve
     ) where
 
 import TQF.AST
+import TQF.AST.Annotated
 import TQF.Environment
 import Control.Monad (foldM, liftM)
 import Control.Arrow (first)
@@ -42,39 +43,42 @@ resolveModule' env Module{..} = do
             , moduleImports = moduleImports
             , moduleDeclarations = decls
             }
-        
+
 addTopLevelDeclToEnv :: ResolveableModule -> Environment -> Declaration Parsed -> Either EnvError Environment
-addTopLevelDeclToEnv mod env FunctionDecl{..} = do
+addTopLevelDeclToEnv mod env (Annot r FunctionDecl{..}) = do
     ret <- resolveType env functionType
     args <- traverse (resolveType env . fst) functionArguments
-    let toAdd = ModFunction (mod, functionName) args ret
+    let toAdd = ModFunction (mod, functionName) (unAnnot <$> args) (unAnnot ret)
     return $ addLIdent ([], functionName) toAdd env
-addTopLevelDeclToEnv mod env VariableDecl{..} = do
+addTopLevelDeclToEnv mod env (Annot r VariableDecl{..}) = do
     typ <- resolveType env variableType
-    let toAdd = ModGlobalVariable (mod, variableName) typ
+    let toAdd = ModGlobalVariable (mod, variableName) (unAnnot typ)
     return $ addLIdent ([], variableName) toAdd env
-addTopLevelDeclToEnv mod env TypeDecl{..} = do
+addTopLevelDeclToEnv mod env (Annot r TypeDecl{..}) = do
     typ <- resolveType env typeValue
-    return $ addUIdent (UIdent [] typeName) typ env
-addTopLevelDeclToEnv mod env CommandDecl{..} = do
+    return $ addUIdent (UIdent [] typeName) (unAnnot typ) env
+addTopLevelDeclToEnv mod env (Annot r CommandDecl{..}) = do
     ret <- resolveType env commandReturnType
     args <- traverse (resolveType env) commandArgs
-    return $ addCommand commandName (args, ret) env
-addTopLevelDeclToEnv mod env ExternalFunctionDecl{..} = do
+    return $ addCommand commandName (unAnnot <$> args, unAnnot ret) env
+addTopLevelDeclToEnv mod env (Annot r ExternalFunctionDecl{..}) = do
     ret <- resolveType env functionType
     args <- traverse (resolveType env . fst) functionArguments
-    let toAdd = ModExternalReference functionSQFName (Type.code args ret)
+    let toAdd = ModExternalReference functionSQFName (Type.code (unAnnot <$> args) (unAnnot ret))
     return $ addLIdent ([], functionName) toAdd env
-addTopLevelDeclToEnv mod env ExternalVariableDecl{..} = do
+addTopLevelDeclToEnv mod env (Annot r ExternalVariableDecl{..}) = do
     typ <- resolveType env variableType
-    let toAdd = ModExternalReference variableSQFName typ
+    let toAdd = ModExternalReference variableSQFName (unAnnot typ)
     return $ addLIdent ([], variableName) toAdd env
 
 resolveDeclaration :: Environment -> Declaration Parsed -> Either EnvError (Declaration Resolved)
-resolveDeclaration env FunctionDecl{..} = do
+resolveDeclaration env = traverse (resolveDeclaration' env)
+
+resolveDeclaration' :: Environment -> Declaration_ Parsed -> Either EnvError (Declaration_ Resolved)
+resolveDeclaration' env FunctionDecl{..} = do
     ret <- resolveType env functionType
     args <- traverse (firstM (resolveType env)) functionArguments
-    stmt <- fst <$> resolveStatement (addArgsToEnv args env) functionContent
+    stmt <- fst <$> resolveStatement (addArgsToEnv (first unAnnot <$> args) env) functionContent
     return FunctionDecl
         { functionName = functionName
         , functionType = ret
@@ -84,19 +88,19 @@ resolveDeclaration env FunctionDecl{..} = do
     where
         addArgsToEnv :: [(Type, VarName)] -> Environment -> Environment
         addArgsToEnv args env = foldr (\(t, n) -> addLIdent ([], n) (ModLocalVariable n t)) env args
-resolveDeclaration env VariableDecl{..} = do
+resolveDeclaration' env VariableDecl{..} = do
     typ <- resolveType env variableType
     return VariableDecl 
         { variableName = variableName
         , variableType = typ
         }
-resolveDeclaration env TypeDecl{..} = do
+resolveDeclaration' env TypeDecl{..} = do
     typ <- resolveType env typeValue
     return TypeDecl
         { typeName = typeName
         , typeValue = typ
         }
-resolveDeclaration env CommandDecl{..} = do
+resolveDeclaration' env CommandDecl{..} = do
     ret <- resolveType env commandReturnType
     args <- traverse (resolveType env) commandArgs
     return CommandDecl
@@ -104,7 +108,7 @@ resolveDeclaration env CommandDecl{..} = do
         , commandReturnType = ret
         , commandArgs = args
         }
-resolveDeclaration env ExternalFunctionDecl{..} = do
+resolveDeclaration' env ExternalFunctionDecl{..} = do
     ret <- resolveType env functionType
     args <- traverse (firstM $ resolveType env) functionArguments
     return ExternalFunctionDecl
@@ -113,7 +117,7 @@ resolveDeclaration env ExternalFunctionDecl{..} = do
         , functionArguments = args
         , functionSQFName = functionSQFName
         }
-resolveDeclaration env ExternalVariableDecl{..} = do
+resolveDeclaration' env ExternalVariableDecl{..} = do
     typ <- resolveType env variableType
     return ExternalVariableDecl
         { variableName = variableName
@@ -122,7 +126,10 @@ resolveDeclaration env ExternalVariableDecl{..} = do
         }
 
 resolveStatement :: Environment -> Statement Parsed -> Either EnvError (Statement Resolved, Environment)
-resolveStatement env (CodeBlock stmts) = first CodeBlock <$> runStateT (traverse f stmts) env
+resolveStatement env stmt = (\(Annot p (a, b)) -> (Annot p a, b)) <$> traverse (resolveStatement' env) stmt
+
+resolveStatement' :: Environment -> Statement_ Parsed -> Either EnvError (Statement_ Resolved, Environment)
+resolveStatement' env (CodeBlock stmts) = first CodeBlock <$> runStateT (traverse f stmts) env
     where
         f :: Statement Parsed -> StateT Environment (Either EnvError) (Statement Resolved)
         f stmt = do
@@ -130,30 +137,30 @@ resolveStatement env (CodeBlock stmts) = first CodeBlock <$> runStateT (traverse
             (stmt',env') <- lift $ resolveStatement env stmt
             put env'
             return stmt'
-resolveStatement env VariableDeclaration{..} = do
+resolveStatement' env VariableDeclaration{..} = do
     typ <- resolveType env varDeclType
     resExpr <- traverse (resolveExpr env) varDeclValue
-    let env' = addLIdent ([], varDeclName) (ModLocalVariable varDeclName typ) env
+    let env' = addLIdent ([], varDeclName) (ModLocalVariable varDeclName (unAnnot typ)) env
     return $ (,env') VariableDeclaration
         { varDeclType = typ
         , varDeclName = varDeclName
         , varDeclValue = resExpr
         }
-resolveStatement env FunctionCall{..} = do
-    function <- lookupLIdent env functionCallName
+resolveStatement' env FunctionCall{..} = do
+    function <- traverse (lookupLIdent env) functionCallName
     args <- traverse (resolveExpr env) functionCallArgs
     return $ (,env) FunctionCall
         { functionCallName = function
         , functionCallArgs = args
         }
-resolveStatement env Assignment{..} = do
-    var <- lookupLIdent env assignmentVariable
+resolveStatement' env Assignment{..} = do
+    var <- traverse (lookupLIdent env) assignmentVariable
     expr <- resolveExpr env assignmentValue
     return $ (,env) Assignment
         { assignmentVariable = var
         , assignmentValue = expr
         }
-resolveStatement env IfStatement{..} = do
+resolveStatement' env IfStatement{..} = do
     expr <- resolveExpr env ifStatementCondition
     stmtTrue <- fst <$> resolveStatement env ifStatementTrue
     stmtFalse <- fmap fst <$> traverse (resolveStatement env) ifStatementFalse
@@ -162,36 +169,39 @@ resolveStatement env IfStatement{..} = do
         , ifStatementTrue = stmtTrue
         , ifStatementFalse = stmtFalse
         }
-resolveStatement env WhileLoop{..} = do
+resolveStatement' env WhileLoop{..} = do
     expr <- resolveExpr env whileLoopCondition
     stmt <- fst <$> resolveStatement env whileLoopStatement
     return $ (,env) WhileLoop
         { whileLoopCondition = expr
         , whileLoopStatement = stmt
         }
-resolveStatement env (Return x) = do
+resolveStatement' env (Return x) = do
     expr <- traverse (resolveExpr env) x
     return (Return expr, env)
-resolveStatement env (DirectCallStmt x args) = do
+resolveStatement' env (DirectCallStmt x args) = do
     (,env) . DirectCallStmt (lookupCommand env x) <$> traverse (resolveExpr env) args
 
 resolveExpr :: Environment -> Expr Parsed -> Either EnvError (Expr Resolved)
-resolveExpr env (Variable x) =
-    Variable <$> lookupLIdent env x
-resolveExpr env (FuncCall n args) =
-    FuncCall <$> lookupLIdent env n <*> traverse (resolveExpr env) args
-resolveExpr env (BoolLiteral x) =
+resolveExpr env = traverse (resolveExpr' env)
+
+resolveExpr' :: Environment -> Expr_ Parsed -> Either EnvError (Expr_ Resolved)
+resolveExpr' env (Variable x) =
+    Variable <$> traverse (lookupLIdent env) x
+resolveExpr' env (FuncCall n args) =
+    FuncCall <$> traverse (lookupLIdent env) n <*> traverse (resolveExpr env) args
+resolveExpr' env (BoolLiteral x) =
     return $ BoolLiteral x
-resolveExpr env (NumLiteral x) =
+resolveExpr' env (NumLiteral x) =
     return $ NumLiteral x
-resolveExpr env (StringLiteral x) =
+resolveExpr' env (StringLiteral x) =
     return $ StringLiteral x
-resolveExpr env (ArrayExpr xs) =
+resolveExpr' env (ArrayExpr xs) =
     ArrayExpr <$> traverse (resolveExpr env) xs
-resolveExpr env (DirectCall x args) =
+resolveExpr' env (DirectCall x args) =
     DirectCall (lookupCommand env x) <$> traverse (resolveExpr env) args
-resolveExpr env (Cast typ x) =
+resolveExpr' env (Cast typ x) =
     Cast <$> resolveType env typ <*> resolveExpr env x
 
-resolveType :: Environment -> ASTType -> Either EnvError Type
-resolveType env = Type.resolveType (lookupUIdent env)
+resolveType :: Environment -> Annot ASTType -> Either EnvError (Annot Type)
+resolveType env = traverse (Type.resolveType (lookupUIdent env))

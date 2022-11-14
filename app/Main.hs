@@ -21,8 +21,7 @@ main = do
     [filePath] -> do
       text <- readFile filePath
       
-      let lexed = Lexer.alexScanTokens text
-      let parsed = either error id $ Parser.parse lexed
+      let parsed = either error id $ Lexer.runAlex text Parser.parse 
       resolved <- either (error . show) id <$> resolveModule (const $ error "Cannot parse modules") parsed
       case TypeCheck.typeCheck resolved of
         (Left err) -> print err
