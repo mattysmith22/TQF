@@ -25,8 +25,9 @@ main = do
       resolved <- either (error . show) id <$> resolveModule (const $ error "Cannot parse modules") parsed
       case TypeCheck.typeCheck resolved of
         (Left err) -> print err
-        (Right ()) -> putStrLn "Passed TypeCheck"
-      putStrLn $ SQF.prettyPrint $ CodeGen.codeGen resolved
+        (Right ()) -> do
+            putStrLn "Passed TypeCheck"
+            putStrLn $ SQF.prettyPrint $ CodeGen.codeGen resolved
     _ -> do
       putStrLn "Please enter file name to parse"
       exitWith (ExitFailure 1)

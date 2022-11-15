@@ -3,6 +3,7 @@ module TQF.CodeGen where
 
 import TQF.AST
 import TQF.AST.Annotated
+import Safe
 import qualified SQF.AST as SQF
 import           Data.List (intercalate)
 
@@ -29,7 +30,12 @@ codeGenDecl' _ _ = []
 codeGenTopLevelStatement :: CodeGenEnv -> Statement Resolved -> [SQF.Statement]
 codeGenTopLevelStatement env stmt = unAnnot $ f <$> stmt
     where
-        f (CodeBlock xs) = fmap (codeGenStatement env) xs
+        f (CodeBlock xs) = let 
+            endStmts = case lastMay xs of
+                (Just (Annot _ (Return _))) -> []
+                _ -> [SQF.Expr $ SQF.NulOp "nil"]
+            stmts = fmap (codeGenStatement env) xs
+            in stmts ++ endStmts
         f _ = [codeGenStatement env stmt]
 
 codeGenStatement :: CodeGenEnv -> Statement Resolved -> SQF.Statement

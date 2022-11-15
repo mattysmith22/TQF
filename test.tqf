@@ -14,4 +14,5 @@ external missionTime: num = "CBA_missionTime"
 function functionName(string arg): string {
     nastyFunction(arg, 1);
     <systemChat>(<str>(missionTime));
+    return "test";
 }

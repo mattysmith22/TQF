@@ -10,6 +10,7 @@ import TQF.Type
 import Control.Error.Util (note)
 import Control.Monad (when)
 import Control.Arrow
+import Safe (lastMay)
 import Data.Foldable (foldrM, traverse_)
 
 data TypeCheckErr = NotWithin (Annot Type) (Annot Type)
@@ -47,7 +48,12 @@ typeCheckStatement :: Env -> Statement Resolved -> Either TypeCheckErr ()
 typeCheckStatement env (Annot r x) = typeCheckStatement' env r x
 
 typeCheckStatement' :: Env -> Range -> Statement_ Resolved -> Either TypeCheckErr ()
-typeCheckStatement' env _ (CodeBlock stmts) = traverse_ (typeCheckStatement (notTopLevel env)) stmts
+typeCheckStatement' env r (CodeBlock stmts) = do
+    traverse_ (typeCheckStatement (notTopLevel env)) stmts
+    when (topLevelStatement env) $ case lastMay stmts of
+            Nothing -> returnType env `shouldBeWithin` Annot r (simpleType Nil)
+            (Just (Annot _ (Return _))) -> return ()
+            (Just _) -> returnType env `shouldBeWithin` Annot r (simpleType Nil)
 typeCheckStatement' env _ VariableDeclaration{..} = do
     shouldNotBeTopLevelStatement env
     exprType <- maybe (return $ Annot (pos varDeclType) $ simpleType Nil) typeCheckExpr varDeclValue
