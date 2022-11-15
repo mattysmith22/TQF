@@ -7,11 +7,11 @@ command "isNotEqualTo" (top, top): bool
 command "systemChat" (string): nil
 command "str" (top): string
 
-external function nastyFunction (string l, num r): bool = "BAD_SCHEME_FNC_NASTYFUNCTION"
+external function nastyFunction (l: string, r: num): bool = "BAD_SCHEME_FNC_NASTYFUNCTION"
 external missionTime: num = "CBA_missionTime"
 
 --Working on compiling functions only first
-function functionName(string arg): string {
+function functionName(arg: string): string {
     nastyFunction(arg, 1);
     <systemChat>(<str>(missionTime));
     return "test";

@@ -141,7 +141,7 @@ FunctionDeclArguments : {- empty -} {[]}
     | FunctionDeclArgument {[$1]}
     | FunctionDeclArgument ',' FunctionDeclArguments {$1:$3}
 
-FunctionDeclArgument : Type LIdentSimple {($1, unAnnot $2)}
+FunctionDeclArgument : LIdentSimple ':' Type {($3, unAnnot $1)}
 
 CodeBlock : '{' Statements '}' {Annot (pos $1 <> pos $3) $2}
 

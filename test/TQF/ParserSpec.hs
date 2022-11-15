@@ -59,21 +59,21 @@ importSpec = do
 
 declarationSpec = do
   it "Should parse a function declaration" $ do
-    "function functionName(nil input): string {}"
+    "function functionName(input: nil): string {}"
       `shouldParse` [ a $ FunctionDecl (l "functionName")
                                    (a $ simpleType String)
                                    [(a $ simpleType Nil, l "input")]
                                    (a $ CodeBlock [])
                     ]
   it "Should parse a function declaration with namespaced types" $ do
-    "function functionName(NS.Void input): NS.String {}"
+    "function functionName(input: NS.Void): NS.String {}"
       `shouldParse` [ a $ FunctionDecl (l "functionName")
                                    (a $ extra $ UIdent [u "NS"] (u "String"))
                                    [(a $ extra $ UIdent [u "NS"] (u "Void"), l "input")]
                                    ( a $ CodeBlock [])
                     ]
   it "Should parse a function declaration with multiple arguments" $ do
-    "function functionName(nil input, num input2): string {}"
+    "function functionName(input: nil, input2: num): string {}"
       `shouldParse` [ a $ FunctionDecl
                         (l "functionName")
                         (a $ simpleType String)
@@ -81,7 +81,7 @@ declarationSpec = do
                         ( a $ CodeBlock [])
                     ]
   it "Should parse multiple function declarations"
-    $             "function functionName(nil input): string {} function functionName2(string input2): num {}"
+    $             "function functionName(input: nil): string {} function functionName2(input2: string): num {}"
     `shouldParse` [ a $ FunctionDecl (l "functionName")
                                  (a $ simpleType String)
                                  [(a $ simpleType Nil, l "input")]
@@ -92,7 +92,7 @@ declarationSpec = do
                                  (a $ CodeBlock [])
                   ]
   it "Should parse an external function declarations"
-    $ "external function functionName(nil input, num input2): bool = \"test\""
+    $ "external function functionName(input: nil, input2: num): bool = \"test\""
     `shouldParse` [ a $ ExternalFunctionDecl
         (l "functionName")
         (a $ simpleType Bool)
