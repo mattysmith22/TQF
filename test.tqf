@@ -13,6 +13,7 @@ external missionTime: num = "CBA_missionTime"
 --Working on compiling functions only first
 function functionName(arg: string): string {
     nastyFunction(arg, 1);
+    x: (num, string) = (1, "test");
     <systemChat>(<str>(missionTime));
-    return "test";
+    return "string";
 }

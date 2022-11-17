@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, FlexibleInstances, StandaloneDeriving, FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies, FlexibleInstances, FlexibleContexts #-}
 module TQF.Type
     ( Type
     , Type'

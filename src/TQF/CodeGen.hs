@@ -88,6 +88,7 @@ codeGenExpr' (DirectCall (name,_) [x]) = SQF.UnOp name (codeGenExpr x)
 codeGenExpr' (DirectCall (name,_) [x, y]) = SQF.BinOp name (codeGenExpr x) (codeGenExpr y)
 codeGenExpr' (DirectCall _ xs) = error $ "Cannot CodeGen a direct call with " ++ show xs ++ " arguments"
 codeGenExpr' (Cast _ x) = codeGenExpr x
+codeGenExpr' (Tuple xs) = SQF.Array $ fmap codeGenExpr xs
 
 getLIdent :: Annot ResolvedLIdent -> SQF.Expr
 getLIdent = getLIdent' . unAnnot

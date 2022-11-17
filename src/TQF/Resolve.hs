@@ -202,6 +202,8 @@ resolveExpr' env (DirectCall x args) =
     DirectCall (lookupCommand env x) <$> traverse (resolveExpr env) args
 resolveExpr' env (Cast typ x) =
     Cast <$> resolveType env typ <*> resolveExpr env x
+resolveExpr' env (Tuple xs) =
+    Tuple <$> traverse (resolveExpr env) xs
 
 resolveType :: Environment -> Annot ASTType -> Either EnvError (Annot Type)
 resolveType env = traverse (Type.resolveType (lookupUIdent env))

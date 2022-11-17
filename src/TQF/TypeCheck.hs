@@ -119,3 +119,4 @@ typeCheckExpr (Annot r (DirectCall (name,cmds) exprs)) = do
 typeCheckExpr (Annot _ (Cast typ x)) = do
     _ <- typeCheckExpr x
     return typ
+typeCheckExpr (Annot r (Tuple xs)) = Annot r . tuple . map unAnnot <$> traverse typeCheckExpr xs

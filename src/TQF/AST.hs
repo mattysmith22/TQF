@@ -138,6 +138,7 @@ data Expr_ a
  | ArrayExpr [Expr a]
  | DirectCall (CommandF a) [Expr a]
  | Cast (TypeDeclF a) (Expr a)
+ | Tuple [Expr a]
 
 deriving instance ValidASTLevel a => Show (Expr_ a)
 deriving instance ValidASTLevel a => Eq (Expr_ a)

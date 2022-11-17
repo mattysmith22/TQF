@@ -229,7 +229,8 @@ Expr :: { Expr Parsed }
     | String {fmap StringLiteral $1}
     | '[' ExprList ']' {Annot (pos $1 <> pos $3) $ ArrayExpr $2}
     | '<' LIdentSimple '>' '(' ExprList ')' { Annot (pos $1 <> pos $6) $ DirectCall (unVarName $ unAnnot $2) $5}
-    | '(' Expr ')' { $2}
+    | '(' ExprList ')' { Annot (pos $1 <> pos $3) $ tupleOrParens $2}
+    | '\'(' ExprList ')' { Annot (pos $1 <> pos $3) $ Tuple $2}
     | '<' Type '>' Expr {Annot (pos $1 <> pos $4) $ Cast $2 $4}
 
 ModuleIdent :: { Annot ResolveableModule }
@@ -255,6 +256,11 @@ SimpleType :: { Annot Type.SimpleType }
     : simpletype { (\(Annot r (TokenSimpleType x)) -> Annot r x) $1 }
 
 {
+
+tupleOrParens :: [Expr Parsed] -> Expr_ Parsed
+tupleOrParens [x] = unAnnot x
+tupleOrParens xs =  Tuple xs
+
 typeToModuleIdent :: UIdent -> ResolveableModule
 typeToModuleIdent (UIdent modules ident) = modules ++ [ident]
 
