@@ -50,7 +50,6 @@ tokens :-
   "if"		{ constToken TokenIf }
   "else"		{ constToken TokenElse }
   "while"		{ constToken TokenWhile }
-  "do"		{ constToken TokenDo }
   "return"	{ constToken TokenReturn }
   "type" { constToken TokenType }
   "function" { constToken TokenFunction }
@@ -117,7 +116,6 @@ data Token
   | TokenIf
   | TokenElse
   | TokenWhile
-  | TokenDo
   | TokenReturn
   | TokenType
   | TokenFunction
@@ -139,7 +137,6 @@ data Token
   | TokenComma
   | TokenPipe
   | TokenColon
-  | TokenDot
   | TokenAdd
   | TokenSub
   | TokenMul
@@ -171,7 +168,6 @@ unLex TokenAs = "as"
 unLex TokenIf = "if"
 unLex TokenElse = "else"
 unLex TokenWhile = "while"
-unLex TokenDo = "do"
 unLex TokenReturn = "return"
 unLex TokenType = "type"
 unLex TokenFunction = "function"
@@ -190,7 +186,6 @@ unLex TokenOpenArrow = "<"
 unLex TokenCloseArrow = ">"
 unLex TokenSemicolon = ";"
 unLex TokenComma = ","
-unLex TokenDot = "."
 unLex TokenAdd = "+"
 unLex TokenSub = "-"
 unLex TokenMul = "*"

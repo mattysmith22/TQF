@@ -27,7 +27,6 @@ import SQF.Commands
     if        { Annot _ TokenIf }
     else      { Annot _ TokenElse }
     while     { Annot _ TokenWhile }
-    do        { Annot _ TokenDo }
     return    { Annot _ TokenReturn }
     type      { Annot _ TokenType }
     function  { Annot _ TokenFunction }
@@ -201,12 +200,11 @@ Expr
     | LIdent '(' ExprList ')' {Annot (pos $1 <> pos $4) $ FuncCall $1 $3}
     | Bool {fmap BoolLiteral $1}
     | Num {fmap NumLiteral $1}
-    | '-' Num {fmap (NumLiteral . negate) $2}
     | String {fmap StringLiteral $1}
     | '[' ExprList ']' {Annot (pos $1 <> pos $3) $ ArrayExpr $2}
     | '<' LIdentSimple '>' '(' ExprList ')' { Annot (pos $1 <> pos $6) $ DirectCall (unVarName $ unAnnot $2) $5}
     | '(' Expr ')' { $2}
-    | '(' Type ')' Expr {Annot (pos $1 <> pos $4) $ Cast $2 $4}
+    | '<' Type '>' Expr {Annot (pos $1 <> pos $4) $ Cast $2 $4}
 
 ModuleIdent : UIdent {fmap typeToModuleIdent $1}
 

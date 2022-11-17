@@ -195,7 +195,7 @@ expressionSpec = do
     it "Should parse normal integer literals" $ do
       "15" `shouldParse` NumLiteral 15
       "0" `shouldParse` NumLiteral 0
-      "-15" `shouldParse` NumLiteral (-15)
+      "-15" `shouldParse` DirectCall "-" [a $ NumLiteral 15]
     it "Should parse normal decimal literals" $ do
       "0.15" `shouldParse` NumLiteral 0.15
     it "Should parse normal hex literals" $ "0x1a5" `shouldParse` NumLiteral 421
@@ -243,7 +243,7 @@ expressionSpec = do
     it "Should parse a binary direct call" $ "<sqfCommand>(1,2)" `shouldParse` DirectCall
       "sqfCommand"
       [ a $ NumLiteral 1, a $ NumLiteral 2]
-  describe "Type cast" $ it "Should parse a type cast" $ "(NS.Type)1" `shouldParse` Cast
+  describe "Type cast" $ it "Should parse a type cast" $ "<NS.Type>1" `shouldParse` Cast
     ( a $ extra $ typN' ["NS"] "Type")
     ( a $ NumLiteral 1)
   describe "Precedence" $ do
@@ -257,7 +257,7 @@ expressionSpec = do
       , a $ NumLiteral 3]
     it "Precedence test 3" $ "(1 + -2) * 3" `shouldParse` DirectCall
       "*"
-      [ a $ DirectCall "+" [ a $ NumLiteral 1, a $ NumLiteral (-2)]
+      [ a $ DirectCall "+" [ a $ NumLiteral 1, a $ DirectCall "-" [a $ NumLiteral 2]]
       , a $ NumLiteral 3]
  where
   shouldParse inp ast =
