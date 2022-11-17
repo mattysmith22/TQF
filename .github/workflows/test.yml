@@ -2,7 +2,7 @@ on: [push]
 name: test
 jobs:
   runhaskell:
-    name: Run unit ter
+    name: Run unit test
     runs-on: ubuntu-latest # or macOS-latest, or windows-latest
     steps:
       - uses: actions/checkout@v2

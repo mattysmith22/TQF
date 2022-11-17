@@ -1,0 +1,25 @@
+{
+  "name": "tqf",
+  "displayName": "TQF",
+  "description": "TQF scripting language support",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.73.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "tqf",
+      "aliases": ["TQF", "tqf"],
+      "extensions": [".tqf"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "tqf",
+      "scopeName": "source.tqf",
+      "path": "./syntaxes/tqf.tmLanguage.json"
+    }]
+  }
+}

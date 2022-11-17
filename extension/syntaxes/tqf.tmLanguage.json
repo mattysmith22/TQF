@@ -1,0 +1,79 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "TQF",
+	"patterns": [
+		{
+			"include": "#inline-comment"
+		},
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#simpleTypes"
+		},
+		{
+			"include": "#uident"
+		},
+		{
+			"include": "#lident"
+		}
+	],
+	"repository": {
+		"inline-comment": {
+			"patterns": [{
+				"comment": "Line comments",
+				"name": "comment.line.double-dash.tqf",
+				"begin": "--",
+				"beginCaptures": {
+					"0": {
+						"name": "punctuation.definition.comment.tqf"
+					}
+				},
+				"end": "$"
+			}]
+		},
+		"keywords": {
+			"patterns": [{
+				"name": "keyword.control.tqf",
+				"match": "\\b(module|where|import|qualified|as|if|else|while|return|type|function|global|command|external)\\b"
+			}]
+		},
+		"simpleTypes": {
+			"patterns": [{
+				"name": "support.type",
+				"match": "\\b(top|string|num|array|hashmap|bool|code|nil)\\b"
+			}]
+		},
+		"strings": {
+			"name": "string.quoted.double.tqf",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.tqf",
+					"match": "\\\\."
+				}
+			]
+		},
+		"uident": {
+			"patterns": [
+				{
+					"name": "support.class.tqf",
+					"match": "\\b([A-Z][A-Za-z0-9]*\\.)*[A-Z][A-Za-z0-9]*(?!\\.)\\b"
+				}
+			]
+		},
+		"lident": {
+			"patterns": [
+				{
+					"name": "variable.tqf",
+					"match": "\\b([A-Z][A-Za-z0-9]*\\.)*([a-z][A-Za-z0-9]*)(\\.[a-z][A-Za-z0-9]*)*(?!\\.)\\b"
+				}
+			]
+		}
+	},
+	"scopeName": "source.tqf"
+}
