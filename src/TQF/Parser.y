@@ -140,14 +140,9 @@ Declaration :: { Declaration Parsed }
     : function LIdentSimple '(' FunctionDeclArguments ')' ':' Type CodeBlock { Annot (pos $1 <> pos $8) $ FunctionDecl (unAnnot $2) $7 $4 (fmap CodeBlock $8) }
     | type UIdentSimple '=' Type { Annot (pos $1 <> pos $4) $ TypeDecl (unAnnot $2) $4 }
     | global LIdentSimple ':' Type { Annot (pos $1 <> pos $4) $ VariableDecl $4 (unAnnot $2) }
-    | command String CommandArgs ':' Type { Annot (pos $1 <> pos $5) $ CommandDecl (unAnnot $2) $5 $3 }
+    | command LIdentSimple '(' FunctionDeclArguments ')' ':' Type '=' String { Annot (pos $1 <> pos $9) $ CommandDecl (unAnnot $9) (unAnnot $2) $7 $4 }
     | external function LIdentSimple '(' FunctionDeclArguments ')' ':' Type '=' String { Annot (pos $1 <> pos $10) $ ExternalFunctionDecl (unAnnot $3) $8 $5 (unAnnot $10) }
     | external LIdentSimple ':' Type '=' String { Annot (pos $1 <> pos $6) $ ExternalVariableDecl (unAnnot $2) $4 (unAnnot $6) }
-
-CommandArgs :: { CommandArgs (Annot ASTType) }
-    : '(' ')' { CommandNular }
-    | '(' Type ')' { CommandUnary $2 }
-    | '(' Type ',' Type ')' { CommandBinary $2 $4 }
 
 FunctionDeclArguments :: { [(Annot ASTType, VarName)] }
     : {- empty -} {[]}
@@ -186,7 +181,6 @@ StatementEndSemicolon :: { Statement Parsed }
     : LIdent LidentStatement { Annot (pos $1 <> pos $2) $ (unAnnot $2) $1}
     | LIdentSimple ':' Type VariableDeclarationAssignment {Annot (pos $1 <> pos $3) $ VariableDeclaration $3 (unAnnot $1) $4}
     | return ReturnValue { Annot (pos $1) $ Return $2}
-    | '<' LIdentSimple '>' '(' ExprList ')' { Annot (pos $1 <> pos $6) $ DirectCallStmt (unVarName $ unAnnot $2) $5}
 
 ReturnValue :: { Maybe (Expr Parsed) }
     : {- empty -} {Nothing}
@@ -206,21 +200,21 @@ ExprList :: { [Expr Parsed] }
     | Expr ',' ExprList {$1:$3}
 
 Expr :: { Expr Parsed }
-    : Expr '+' Expr  {Annot (pos $1 <> pos $2) $ DirectCall "+" [$1, $3]}
-    | Expr '-' Expr  {Annot (pos $1 <> pos $2) $ DirectCall "-" [$1, $3]}
-    | Expr '*' Expr  {Annot (pos $1 <> pos $2) $ DirectCall "*" [$1, $3]}
-    | Expr '/' Expr  {Annot (pos $1 <> pos $2) $ DirectCall "/" [$1, $3]}
-    | Expr '%' Expr  {Annot (pos $1 <> pos $2) $ DirectCall "%" [$1, $3]}
-    | Expr '&&' Expr {Annot (pos $1 <> pos $2) $ DirectCall "&&" [$1, $3]}
-    | Expr '||' Expr {Annot (pos $1 <> pos $2) $ DirectCall "||" [$1, $3]}
-    | Expr '==' Expr {Annot (pos $1 <> pos $2) $ DirectCall "isEqualTo" [$1, $3]}
-    | Expr '!=' Expr {Annot (pos $1 <> pos $2) $ DirectCall "isNotEqualTo" [$1, $3]}
-    | Expr '<=' Expr {Annot (pos $1 <> pos $2) $ DirectCall "<=" [$1, $3]}
-    | Expr '>=' Expr {Annot (pos $1 <> pos $2) $ DirectCall ">=" [$1, $3]}
-    | Expr '<' Expr  {Annot (pos $1 <> pos $2) $ DirectCall "<" [$1, $3]}
-    | Expr '>' Expr  {Annot (pos $1 <> pos $2) $ DirectCall ">" [$1, $3]}
-    | '!' Expr {Annot (pos $1 <> pos $2) $ DirectCall "!" [$2]}
-    | '-' Expr %prec NEG {Annot (pos $1 <> pos $2) $ DirectCall "-" [$2]}
+    : Expr '+' Expr  {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) AddOp) $1 $3}
+    | Expr '-' Expr  {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) SubOp) $1 $3}
+    | Expr '*' Expr  {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) MulOp) $1 $3}
+    | Expr '/' Expr  {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) DivOp) $1 $3}
+    | Expr '%' Expr  {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) ModOp) $1 $3}
+    | Expr '&&' Expr {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) AndOp) $1 $3}
+    | Expr '||' Expr {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) OrOp) $1 $3}
+    | Expr '==' Expr {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) EqOp) $1 $3}
+    | Expr '!=' Expr {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) NotEqOp) $1 $3}
+    | Expr '<=' Expr {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) LessEqualOp) $1 $3}
+    | Expr '>=' Expr {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) GreaterEqualOp) $1 $3}
+    | Expr '<' Expr  {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) LessOp) $1 $3}
+    | Expr '>' Expr  {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) GreaterOp) $1 $3}
+    | '!' Expr {Annot (pos $1 <> pos $2) $ UnOp (Annot (pos $1) NotOp) $2}
+    | '-' Expr %prec NEG {Annot (pos $1 <> pos $2) $ UnOp (Annot (pos $1) NegOp) $2}
 
     | LIdent {Annot (pos $1) $ Variable $1}
     | LIdent '(' ExprList ')' {Annot (pos $1 <> pos $4) $ FuncCall $1 $3}
@@ -228,7 +222,6 @@ Expr :: { Expr Parsed }
     | Num {fmap NumLiteral $1}
     | String {fmap StringLiteral $1}
     | '[' ExprList ']' {Annot (pos $1 <> pos $3) $ ArrayExpr $2}
-    | '<' LIdentSimple '>' '(' ExprList ')' { Annot (pos $1 <> pos $6) $ DirectCall (unVarName $ unAnnot $2) $5}
     | '(' ExprList ')' { Annot (pos $1 <> pos $3) $ tupleOrParens $2}
     | '\'(' ExprList ')' { Annot (pos $1 <> pos $3) $ Tuple $2}
     | '<' Type '>' Expr {Annot (pos $1 <> pos $4) $ Cast $2 $4}

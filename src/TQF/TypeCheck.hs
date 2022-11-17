@@ -17,6 +17,8 @@ data TypeCheckErr = NotWithin (Annot Type) (Annot Type)
      | NoField VarName (Annot Type)
      | BadTopLevel
      | NoValidCommand String [Annot Type]
+     | InvalidBinOp Range Type Type
+     | InvalidUnOp Range Type
      deriving (Show, Eq)
 
 shouldBeWithin :: Annot Type -> Annot Type -> Either TypeCheckErr ()
@@ -84,10 +86,6 @@ typeCheckStatement' env r (Return Nothing) =
 typeCheckStatement' env _ (Return (Just x)) = do
     exprType <- typeCheckExpr x
     exprType `shouldBeWithin` returnType env
-typeCheckStatement' env _ (DirectCallStmt (name,cmds) exprs) = do
-    types <- traverse typeCheckExpr exprs
-    left (const $ NoValidCommand name types) $ validateDirectCall cmds (unAnnot <$> types)
-    return ()
 
 typeCheckLIdent :: Annot ResolvedLIdent -> Either TypeCheckErr (Annot Type)
 typeCheckLIdent (Annot r (ResolvedLIdent initial fields)) = Annot r <$> foldrM go (identDeclToType initial) fields
@@ -99,6 +97,7 @@ typeCheckLIdent (Annot r (ResolvedLIdent initial fields)) = Annot r <$> foldrM g
         identDeclToType (ModFunction _ args ret) = code args ret
         identDeclToType (ModGlobalVariable _ x) = x
         identDeclToType (ModLocalVariable _ x) = x
+        identDeclToType (ModCommand _ _ args ret) = code args ret
         identDeclToType (ModExternalReference _ x) = x
 
 typeCheckExpr :: Expr Resolved -> Either TypeCheckErr (Annot Type)
@@ -113,9 +112,25 @@ typeCheckExpr (Annot r (StringLiteral x)) = return $ Annot r (constString x)
 typeCheckExpr (Annot r (ArrayExpr xs)) = do
     types <- traverse typeCheckExpr xs
     return $ Annot r $ array $ mconcat $ unAnnot <$> types
-typeCheckExpr (Annot r (DirectCall (name,cmds) exprs)) = do
-    types <- traverse typeCheckExpr exprs
-    left (const $ NoValidCommand name types) $ right (Annot r) $ validateDirectCall cmds (unAnnot <$> types)
+typeCheckExpr (Annot range (BinOp (Annot _ op) l r)) = do
+    (Annot _ l') <- typeCheckExpr l
+    (Annot _ r') <- typeCheckExpr r
+    Annot range <$> typeCheckBinOp l' r'
+    where
+        typeCheckBinOp :: Type -> Type -> Either TypeCheckErr Type
+        typeCheckBinOp l r
+            | op `elem` [EqOp, NotEqOp] = return (simpleType Bool)
+            | op `elem` [SubOp, MulOp, DivOp, ModOp] = left (uncurry $ InvalidBinOp range) $ validateBinOp [(Number,Number,Number)] l r
+            | op `elem` [AndOp, OrOp] = left (uncurry $ InvalidBinOp range) $ validateBinOp [(Bool,Bool,Bool)] l r
+            | op == AddOp = left (uncurry $ InvalidBinOp range) $ validateBinOp [(Number,Number,Number), (String,String,String)] l r
+            | op `elem` [LessOp, GreaterOp, LessEqualOp, GreaterEqualOp] = left (uncurry $ InvalidBinOp range) $ validateBinOp [(Number,Number,Bool)] l r
+            | otherwise = error $ "Not a valid BinOp: " ++ show op
+typeCheckExpr (Annot range (UnOp (Annot _ NegOp) x)) = fmap (Annot range) $
+    typeCheckExpr x
+    >>= (left (InvalidUnOp range) . validateUnOp [(Number, Number)] . unAnnot)
+typeCheckExpr (Annot range (UnOp (Annot _ NotOp) x)) = fmap (Annot range) $
+    typeCheckExpr x
+    >>= (left (InvalidUnOp range) . validateUnOp [(Bool, Bool)] . unAnnot)
 typeCheckExpr (Annot _ (Cast typ x)) = do
     _ <- typeCheckExpr x
     return typ

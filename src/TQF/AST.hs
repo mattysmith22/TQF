@@ -61,9 +61,10 @@ data Declaration_ a = FunctionDecl
   { typeName :: TypeName
   , typeValue :: TypeDeclF a
   } | CommandDecl
-  { commandName :: String
+  { commandSQF :: String
+  , commandName :: VarName
   , commandReturnType :: TypeDeclF a
-  , commandArgs :: CommandArgs (TypeDeclF a)
+  , commandArgs :: [(TypeDeclF a, VarName)]
   } | ExternalFunctionDecl
   { functionName          :: VarName
   , functionType          :: TypeDeclF a
@@ -118,10 +119,6 @@ data Statement_ a =
         whileLoopCondition:: Expr a,
         whileLoopStatement:: Statement a
     }
-    | DirectCallStmt {
-        directCommand :: CommandF a,
-        directArgs :: [Expr a]
-    }
     | Return (Maybe (Expr a))
 
 deriving instance ValidASTLevel a => Show (Statement_ a)
@@ -133,10 +130,11 @@ data Expr_ a
  = Variable (LIdentF a)
  | FuncCall (LIdentF a) [Expr a]
  | BoolLiteral Bool
+ | UnOp (Annot UnaryOperator) (Expr a)
+ | BinOp (Annot BinaryOperator) (Expr a) (Expr a)
  | NumLiteral Double
  | StringLiteral String
  | ArrayExpr [Expr a]
- | DirectCall (CommandF a) [Expr a]
  | Cast (TypeDeclF a) (Expr a)
  | Tuple [Expr a]
 
@@ -165,6 +163,7 @@ newtype TypeName = TypeName {unTypeName:: String}
     deriving (Eq, Ord)
 
 data ModLIdentDecl = ModFunction (ResolveableModule, VarName) [Type] Type
+  | ModCommand (ResolveableModule, VarName) String [Type] Type
   | ModGlobalVariable (ResolveableModule, VarName) Type
   | ModLocalVariable VarName Type
   | ModExternalReference String Type

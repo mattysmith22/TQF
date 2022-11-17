@@ -26,7 +26,8 @@ module TQF.Type
     , resolveType
     , lookupField
     , validateFuncCall
-    , validateDirectCall
+    , validateBinOp
+    , validateUnOp
     ) where
 
 import Data.Functor.Identity ()
@@ -37,7 +38,7 @@ import Data.Zip
 import qualified Data.Set as Set
 import Test.QuickCheck
 import Control.Arrow
-import Data.Foldable (traverse_)
+import Data.Foldable (traverse_, asum)
 import Data.Maybe (fromJust, isJust, mapMaybe)
 import Control.Monad (unless)
 import Data.Either (isRight, fromLeft, fromRight)
@@ -354,16 +355,45 @@ validateFuncCall (Options xs) argsIn
             traverse_ (\x -> unless (uncurry isWithin x) $ Left x) $ zipPadded (simpleType Nil) top argsIn args
             return ret
         validateFuncCallBaseType notCode = Left (Options $ Set.singleton notCode, code argsIn Top)
-    
-validateDirectCall :: [(CommandArgs Type, Type)] -> [Type] -> Either () Type
-validateDirectCall possibleSigs args = if null matchedTypes then Left () else Right $ mconcat matchedTypes
+
+validateBinOp :: [(SimpleType,SimpleType,SimpleType)] -> Type -> Type -> Either (Type,Type) Type
+validateBinOp validOps Top r = Left (Top,r)
+validateBinOp validOps l Top = Left (l,Top)
+validateBinOp validOps (Options l) (Options r) = fmap mconcat $ mapM (uncurry matches) $ Set.toList $ Set.cartesianProduct l r
     where
-        matchedTypes = mapMaybe matchSingleDirectCall possibleSigs
-        matchSingleDirectCall :: (CommandArgs Type, Type) -> Maybe Type
-        matchSingleDirectCall (reqArgs, ret) =
-            let isValid = case (reqArgs, args) of
-                    (CommandNular, []) -> True
-                    (CommandUnary rx, [x]) -> x `isWithin` rx
-                    (CommandBinary rx ry, [x, y]) -> x `isWithin` rx && y `isWithin` ry
-                    (_,_) -> False
-            in if isValid then Just ret else Nothing
+        matches :: BaseType () -> BaseType () -> Either (Type, Type) Type
+        matches l' r' = foldl1 eitherOf $ fmap (isValidOp l' r') validOps
+
+        isValidOp :: BaseType () -> BaseType () -> (SimpleType, SimpleType, SimpleType) -> Either (Type,Type) Type
+        isValidOp l' r' (lExp, rExp, ret)= let
+            lt = Options $ Set.singleton l'
+            rt = Options $ Set.singleton r'
+            in if lt `isWithin` simpleType lExp && rt `isWithin` simpleType rExp then
+                Right $ simpleType ret
+            else
+                Left (lt, rt)
+
+        eitherOf :: Either a b -> Either a b -> Either a b
+        eitherOf (Left _) (Right x) = Right x
+        eitherOf (Left x) (Left _) = Left x
+        eitherOf (Right x) _ = Right x
+
+validateUnOp :: [(SimpleType,SimpleType)] -> Type -> Either Type Type
+validateUnOp validOps Top = Left Top
+validateUnOp validOps (Options x) = fmap mconcat $ mapM matches $ Set.toList x
+    where
+        matches :: BaseType () -> Either Type Type
+        matches x' = foldl1 eitherOf $ fmap (isValidOp x') validOps
+
+        isValidOp :: BaseType () -> (SimpleType, SimpleType) -> Either Type Type
+        isValidOp x' (xExp, ret) = let
+            xt = Options $ Set.singleton x'
+            in if xt `isWithin` simpleType xExp then
+                Right $ simpleType ret
+            else
+                Left xt
+
+        eitherOf :: Either a b -> Either a b -> Either a b
+        eitherOf (Left _) (Right x) = Right x
+        eitherOf (Left x) (Left _) = Left x
+        eitherOf (Right x) _ = Right x

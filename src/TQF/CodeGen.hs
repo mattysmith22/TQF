@@ -51,10 +51,7 @@ codeGenStatement' env stmt = unAnnot $ f <$> stmt
         f VariableDeclaration{..} = case varDeclValue of
             Nothing -> Right $ SQF.UnOp "private" $ SQF.StringLit ("_" ++ unVarName varDeclName)
             (Just expr) -> Left $ SQF.Assign SQF.Private ("_" ++ unVarName varDeclName) (codeGenExpr expr)
-        f FunctionCall{..} = let
-            args = codeGenExpr <$> functionCallArgs
-            lident = getLIdent functionCallName
-            in Right $ SQF.BinOp "call" (SQF.Array args) lident
+        f FunctionCall{..} = Right $ codeGenExpr' (FuncCall functionCallName functionCallArgs)
         f Assignment{..} = setLIdent assignmentVariable (codeGenExpr assignmentValue)
         f IfStatement{..} =
             let cond = codeGenExpr ifStatementCondition
@@ -71,24 +68,45 @@ codeGenStatement' env stmt = unAnnot $ f <$> stmt
         f (Return (Just expr)) =
             let retVal = codeGenExpr expr
             in Right $ SQF.BinOp "breakOut" retVal $ SQF.StringLit $ envFunction env
-        f (DirectCallStmt cmd args) = Right $ codeGenExpr' (DirectCall cmd args)
 
 codeGenExpr :: Expr Resolved -> SQF.Expr
 codeGenExpr x = codeGenExpr' $ unAnnot x
 
 codeGenExpr' :: Expr_ Resolved -> SQF.Expr
 codeGenExpr' (Variable lIdent) = getLIdent lIdent
+codeGenExpr' (FuncCall (Annot _ (ResolvedLIdent (ModCommand _ name argList _) _)) args) = let
+            args' = zipWith const (fmap codeGenExpr args ++ repeat (SQF.NulOp "nil")) argList
+            in case args' of
+                [] -> SQF.NulOp name
+                [x] -> SQF.UnOp name x
+                [l,r] -> SQF.BinOp name l r
+                xs -> error $ "Commands cannot have " ++ show (length xs) ++ " args"
 codeGenExpr' (FuncCall lIdent args) = SQF.BinOp "call" (SQF.Array $ codeGenExpr <$> args) (getLIdent lIdent)
 codeGenExpr' (BoolLiteral x) = SQF.BoolLit x
 codeGenExpr' (NumLiteral x) = SQF.NumLit x
 codeGenExpr' (StringLiteral x) = SQF.StringLit x
 codeGenExpr' (ArrayExpr xs) = SQF.Array $ codeGenExpr <$> xs
-codeGenExpr' (DirectCall (name,_) []) = SQF.NulOp name
-codeGenExpr' (DirectCall (name,_) [x]) = SQF.UnOp name (codeGenExpr x)
-codeGenExpr' (DirectCall (name,_) [x, y]) = SQF.BinOp name (codeGenExpr x) (codeGenExpr y)
-codeGenExpr' (DirectCall _ xs) = error $ "Cannot CodeGen a direct call with " ++ show xs ++ " arguments"
 codeGenExpr' (Cast _ x) = codeGenExpr x
 codeGenExpr' (Tuple xs) = SQF.Array $ fmap codeGenExpr xs
+codeGenExpr' (UnOp op x) = SQF.UnOp (toString $ unAnnot op) $ codeGenExpr x
+    where
+        toString NegOp = "-"
+        toString NotOp = "!"
+codeGenExpr' (BinOp op l r) = SQF.BinOp (toString $ unAnnot op) (codeGenExpr l) (codeGenExpr r)
+    where
+        toString AndOp = "&&"
+        toString OrOp = "||"
+        toString AddOp = "+"
+        toString SubOp = "-"
+        toString DivOp = "/"
+        toString MulOp = "*"
+        toString ModOp = "%"
+        toString EqOp = "isEqualTo"
+        toString NotEqOp = "isNotEqualTo"
+        toString LessOp = "<"
+        toString GreaterOp = ">"
+        toString LessEqualOp = "<="
+        toString GreaterEqualOp = ">="
 
 getLIdent :: Annot ResolvedLIdent -> SQF.Expr
 getLIdent = getLIdent' . unAnnot
@@ -115,3 +133,4 @@ sqfNameFor (ModGlobalVariable (path, name) _)
 sqfNameFor (ModLocalVariable name _)
     = "_" ++ unVarName name
 sqfNameFor (ModExternalReference name _) = name
+sqfNameFor (ModCommand _ name _ _) = error $ "Command " ++ name ++ " cannot be used as a lIdent"

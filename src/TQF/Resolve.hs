@@ -59,8 +59,9 @@ addTopLevelDeclToEnv mod env (Annot r TypeDecl{..}) = do
     return $ addUIdent (UIdent [] typeName) (unAnnot typ) env
 addTopLevelDeclToEnv mod env (Annot r CommandDecl{..}) = do
     ret <- resolveType env commandReturnType
-    args <- traverse (resolveType env) commandArgs
-    return $ addCommand commandName (unAnnot <$> args, unAnnot ret) env
+    args <- traverse (resolveType env . fst) commandArgs
+    let toAdd = ModCommand (mod, commandName) commandSQF (fmap unAnnot args) (unAnnot ret)
+    return $ addLIdent ([], commandName) toAdd env
 addTopLevelDeclToEnv mod env (Annot r ExternalFunctionDecl{..}) = do
     ret <- resolveType env functionType
     args <- traverse (resolveType env . fst) functionArguments
@@ -102,9 +103,10 @@ resolveDeclaration' env TypeDecl{..} = do
         }
 resolveDeclaration' env CommandDecl{..} = do
     ret <- resolveType env commandReturnType
-    args <- traverse (resolveType env) commandArgs
+    args <- traverse (firstM $ resolveType env) commandArgs
     return CommandDecl
         { commandName = commandName
+        , commandSQF = commandSQF
         , commandReturnType = ret
         , commandArgs = args
         }
@@ -179,8 +181,6 @@ resolveStatement' env WhileLoop{..} = do
 resolveStatement' env (Return x) = do
     expr <- traverse (resolveExpr env) x
     return (Return expr, env)
-resolveStatement' env (DirectCallStmt x args) = do
-    (,env) . DirectCallStmt (lookupCommand env x) <$> traverse (resolveExpr env) args
 
 resolveExpr :: Environment -> Expr Parsed -> Either EnvError (Expr Resolved)
 resolveExpr env = traverse (resolveExpr' env)
@@ -198,12 +198,14 @@ resolveExpr' env (StringLiteral x) =
     return $ StringLiteral x
 resolveExpr' env (ArrayExpr xs) =
     ArrayExpr <$> traverse (resolveExpr env) xs
-resolveExpr' env (DirectCall x args) =
-    DirectCall (lookupCommand env x) <$> traverse (resolveExpr env) args
 resolveExpr' env (Cast typ x) =
     Cast <$> resolveType env typ <*> resolveExpr env x
 resolveExpr' env (Tuple xs) =
     Tuple <$> traverse (resolveExpr env) xs
+resolveExpr' env (BinOp op l r) =
+    BinOp op <$> resolveExpr env l <*> resolveExpr env r
+resolveExpr' env (UnOp op x) =
+    UnOp op <$> resolveExpr env x
 
 resolveType :: Environment -> Annot ASTType -> Either EnvError (Annot Type)
 resolveType env = traverse (Type.resolveType (lookupUIdent env))
