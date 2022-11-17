@@ -80,25 +80,33 @@ import SQF.Commands
 
 %%
 
-Module : ModuleDeclaration Imports Declarations {Module $1 $2 (reverse $3) :: Module Parsed}
+Module :: { Module Parsed }
+    : ModuleDeclaration Imports Declarations {Module $1 $2 (reverse $3) :: Module Parsed}
 
-ModuleDeclaration : module ModuleIdent where {unAnnot $2}
+ModuleDeclaration :: { ResolveableModule }
+    : module ModuleIdent where {unAnnot $2}
 
-Imports : {- empty -} {[]}
+Imports :: { [ImportStatement] }
+    : {- empty -} {[]}
     | Import Imports { $1 : $2 }
 
-Import : import ImportQualification ModuleIdent ImportRenaming { ImportStatement (unAnnot $3) $2 $4}
+Import :: { ImportStatement }
+    : import ImportQualification ModuleIdent ImportRenaming { ImportStatement (unAnnot $3) $2 $4}
 
-ImportQualification : {- empty -} {False}
+ImportQualification :: { Bool }
+    : {- empty -} {False}
     | qualified {True}
 
-ImportRenaming : {- empty -} {Nothing}
+ImportRenaming :: { Maybe ResolveableModule }
+    : {- empty -} {Nothing}
     | as ModuleIdent {Just $ unAnnot $2}
 
-Declarations : {- empty -} {[]}
+Declarations :: { [Declaration Parsed] }
+    : {- empty -} {[]}
     | Declarations Declaration { $2 : $1 }
 
-Type : SimpleType { fmap Type.simpleType $1 }
+Type :: { Annot ASTType }
+    : SimpleType { fmap Type.simpleType $1 }
     | Num { fmap Type.constNumber $1 }
     | String { fmap Type.constString $1 }
     | Bool { fmap Type.constBool $1 }
@@ -115,71 +123,89 @@ Type : SimpleType { fmap Type.simpleType $1 }
     -- Record definition
     | '{' TypeRecordFields '}' { Annot (pos $1 <> pos $3) $ Type.record $ Map.fromList $2 }
     
-TupleElements : {- empty -} {[]}
+TupleElements :: { [ASTType] }
+    : {- empty -} {[]}
     | Type { [unAnnot $1] }
     | Type ',' TupleElements { unAnnot $1 : $3 }
 
-TypeRecordFields : {- empty -} {[]}
+TypeRecordFields :: { [(String, ASTType)] }
+    : {- empty -} {[]}
     | TypeRecordField {[$1]}
     | TypeRecordField ',' TypeRecordFields { $1:$3 }
 
-TypeRecordField : LIdentSimple ':' Type { (unVarName $ unAnnot $1, unAnnot $3) }
+TypeRecordField :: { (String, ASTType) }
+    : LIdentSimple ':' Type { (unVarName $ unAnnot $1, unAnnot $3) }
 
-Declaration : function LIdentSimple '(' FunctionDeclArguments ')' ':' Type CodeBlock { Annot (pos $1 <> pos $8) $ FunctionDecl (unAnnot $2) $7 $4 (fmap CodeBlock $8) }
+Declaration :: { Declaration Parsed }
+    : function LIdentSimple '(' FunctionDeclArguments ')' ':' Type CodeBlock { Annot (pos $1 <> pos $8) $ FunctionDecl (unAnnot $2) $7 $4 (fmap CodeBlock $8) }
     | type UIdentSimple '=' Type { Annot (pos $1 <> pos $4) $ TypeDecl (unAnnot $2) $4 }
     | global LIdentSimple ':' Type { Annot (pos $1 <> pos $4) $ VariableDecl $4 (unAnnot $2) }
     | command String CommandArgs ':' Type { Annot (pos $1 <> pos $5) $ CommandDecl (unAnnot $2) $5 $3 }
     | external function LIdentSimple '(' FunctionDeclArguments ')' ':' Type '=' String { Annot (pos $1 <> pos $10) $ ExternalFunctionDecl (unAnnot $3) $8 $5 (unAnnot $10) }
     | external LIdentSimple ':' Type '=' String { Annot (pos $1 <> pos $6) $ ExternalVariableDecl (unAnnot $2) $4 (unAnnot $6) }
 
-CommandArgs : '(' ')' { CommandNular }
+CommandArgs :: { CommandArgs (Annot ASTType) }
+    : '(' ')' { CommandNular }
     | '(' Type ')' { CommandUnary $2 }
     | '(' Type ',' Type ')' { CommandBinary $2 $4 }
 
-FunctionDeclArguments : {- empty -} {[]}
+FunctionDeclArguments :: { [(Annot ASTType, VarName)] }
+    : {- empty -} {[]}
     | FunctionDeclArgument {[$1]}
     | FunctionDeclArgument ',' FunctionDeclArguments {$1:$3}
 
-FunctionDeclArgument : LIdentSimple ':' Type {($3, unAnnot $1)}
+FunctionDeclArgument :: { (Annot ASTType, VarName) }
+    : LIdentSimple ':' Type {($3, unAnnot $1)}
 
-CodeBlock : '{' Statements '}' {Annot (pos $1 <> pos $3) $2}
+CodeBlock :: { Annot [Statement Parsed] }
+    : '{' Statements '}' {Annot (pos $1 <> pos $3) $2}
 
-Statements : {- empty -} {[]}
+Statements :: { [Statement Parsed] }
+    : {- empty -} {[]}
     | Statement {[$1]}
     | Statement Statements {$1:$2}
 
-StatementNoEndSemicolon : CodeBlock {fmap CodeBlock $1}
+StatementNoEndSemicolon :: { Statement Parsed }
+    : CodeBlock {fmap CodeBlock $1}
     | if '(' Expr ')' IfStatements {Annot (pos $1 <> pos $5) $ IfStatement $3 (fst $ unAnnot $5) (snd $ unAnnot $5)}
     | while '(' Expr ')' Statement {Annot (pos $1 <> pos $5) $ WhileLoop $3 $5}
 
-IfStatements : StatementNoSemicolon else Statement {Annot (pos $1 <> pos $3) $ ($1, Just $3)}
+IfStatements :: { Annot (Statement Parsed, Maybe (Statement Parsed)) }
+    : StatementNoSemicolon else Statement {Annot (pos $1 <> pos $3) $ ($1, Just $3)}
     | Statement {Annot (pos $1) $ ($1, Nothing)}
 
-Statement : StatementNoEndSemicolon {$1}
+Statement :: { Statement Parsed }
+    : StatementNoEndSemicolon {$1}
     | StatementEndSemicolon ';' {$1}
 
-StatementNoSemicolon : StatementNoEndSemicolon {$1}
+StatementNoSemicolon :: { Statement Parsed }
+    : StatementNoEndSemicolon {$1}
     | StatementEndSemicolon {$1}
 
-StatementEndSemicolon : LIdent LidentStatement { Annot (pos $1 <> pos $2) $ (unAnnot $2) $1}
+StatementEndSemicolon :: { Statement Parsed }
+    : LIdent LidentStatement { Annot (pos $1 <> pos $2) $ (unAnnot $2) $1}
     | LIdentSimple ':' Type VariableDeclarationAssignment {Annot (pos $1 <> pos $3) $ VariableDeclaration $3 (unAnnot $1) $4}
     | return ReturnValue { Annot (pos $1) $ Return $2}
     | '<' LIdentSimple '>' '(' ExprList ')' { Annot (pos $1 <> pos $6) $ DirectCallStmt (unVarName $ unAnnot $2) $5}
 
-ReturnValue : {- empty -} {Nothing}
+ReturnValue :: { Maybe (Expr Parsed) }
+    : {- empty -} {Nothing}
     | Expr {Just $1}
 
-VariableDeclarationAssignment : {- empty -} {Nothing}
+VariableDeclarationAssignment :: { Maybe (Expr Parsed) }
+    : {- empty -} {Nothing}
     | '=' Expr {Just $2}
 
-LidentStatement : '=' Expr {Annot (pos $1 <> pos $2) $ (\s -> Assignment s $2)}
+LidentStatement :: { Annot (Annot LIdent -> Statement_ Parsed) }
+    : '=' Expr {Annot (pos $1 <> pos $2) $ (\s -> Assignment s $2)}
     | '(' ExprList ')' {Annot (pos $1 <> pos $3) $ (\s -> FunctionCall s $2)}
 
-ExprList : {- empty -} {[]}
+ExprList :: { [Expr Parsed] }
+    : {- empty -} {[]}
     | Expr {[$1]}
     | Expr ',' ExprList {$1:$3}
 
-Expr 
+Expr :: { Expr Parsed }
     : Expr '+' Expr  {Annot (pos $1 <> pos $2) $ DirectCall "+" [$1, $3]}
     | Expr '-' Expr  {Annot (pos $1 <> pos $2) $ DirectCall "-" [$1, $3]}
     | Expr '*' Expr  {Annot (pos $1 <> pos $2) $ DirectCall "*" [$1, $3]}
@@ -206,24 +232,26 @@ Expr
     | '(' Expr ')' { $2}
     | '<' Type '>' Expr {Annot (pos $1 <> pos $4) $ Cast $2 $4}
 
-ModuleIdent : UIdent {fmap typeToModuleIdent $1}
+ModuleIdent :: { Annot ResolveableModule }
+    : UIdent {fmap typeToModuleIdent $1}
 
-Bool
+Bool :: { Annot Bool }
     : bool { (\(Annot r (TokenBool x)) -> Annot r x) $1 }
-Num
+Num :: { Annot Double }
     : int { (\(Annot r (TokenNum x)) -> Annot r x) $1 }
-String
+String :: { Annot String }
     : string { (\(Annot r (TokenString x)) -> Annot r x) $1 }
-LIdentSimple
+LIdentSimple :: { Annot VarName }
     : lidentSimple { ((\(Annot r (TokenIdentLower (LIdent [] (x:|[])))) -> Annot r x) $1 :: Annot VarName) }
-LIdent
+LIdent :: { Annot LIdent }
     : lidentSimple { (\(Annot r (TokenIdentLower x)) -> Annot r x) $1 }
     | lident { (\(Annot r (TokenIdentLower x)) -> Annot r x) $1 }
-UIdentSimple : uidentSimple { (\(Annot r (TokenIdentUpper (UIdent [] x))) -> Annot r x) $1 }
-UIdent
+UIdentSimple :: { Annot TypeName }
+    : uidentSimple { (\(Annot r (TokenIdentUpper (UIdent [] x))) -> Annot r x) $1 }
+UIdent :: { Annot UIdent }
     : uidentSimple { (\(Annot r (TokenIdentUpper x)) -> Annot r x) $1 }
     | uident { (\(Annot r (TokenIdentUpper x)) -> Annot r x) $1 }
-SimpleType
+SimpleType :: { Annot Type.SimpleType }
     : simpletype { (\(Annot r (TokenSimpleType x)) -> Annot r x) $1 }
 
 {
