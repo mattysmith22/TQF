@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2411a21a65e54cb1e62bdd9a8121b694d11eefc684ce3ff1eacbb4ad3fa4d576
+-- hash: 5b58505e66145d9da487d249d9ccb4b8f75a2fe85628ce1490d44e5ff451dac2
 
 name:           TQF
 version:        0.1.0.0
@@ -58,6 +58,7 @@ library
     , mtl
     , safe
     , split
+    , transformers
   default-language: Haskell2010
 
 executable TQF-exe
@@ -83,6 +84,7 @@ executable TQF-exe
     , pretty-simple
     , safe
     , split
+    , transformers
   default-language: Haskell2010
 
 test-suite TQF-test
@@ -114,4 +116,5 @@ test-suite TQF-test
     , mtl
     , safe
     , split
+    , transformers
   default-language: Haskell2010

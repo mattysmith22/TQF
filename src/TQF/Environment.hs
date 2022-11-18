@@ -7,8 +7,6 @@ module TQF.Environment
     , lookupUIdent
     , addLIdent
     , lookupLIdent
-    , addCommand
-    , lookupCommand
     , emptyEnv
     , importModuleToEnv
     ) where
@@ -23,14 +21,13 @@ import Data.Maybe (fromMaybe)
 import SQF.Commands
 
 data Environment = Environment
-    { envCommands :: Map String [(CommandArgs Type, Type)]
-    , envUIdents :: Map UIdent (CanCollide Type)
+    { envUIdents :: Map UIdent (CanCollide Type)
     , envLIdents :: Map (ResolveableModule, VarName) (CanCollide ModLIdentDecl)
     }
     deriving (Show, Eq)
 
 emptyEnv :: Environment
-emptyEnv = Environment mempty mempty mempty
+emptyEnv = Environment mempty mempty
 
 data CanCollide a = NoCollision a
     | Collision
@@ -58,21 +55,21 @@ lookupLIdent Environment{..} x@(LIdent modl (name:|rest)) = flip ResolvedLIdent 
 addLIdent :: (ResolveableModule, VarName) -> ModLIdentDecl -> Environment -> Environment
 addLIdent lident decl env = env { envLIdents = Map.insert lident (NoCollision decl) $ envLIdents env }
 
-lookupCommand :: Environment -> String -> (String, [(CommandArgs Type, Type)])
-lookupCommand Environment{..} name = (name,) $ fromMaybe [] $ Map.lookup name envCommands
-
-addCommand :: String -> (CommandArgs Type, Type) -> Environment -> Environment
-addCommand name commandArgs env = env { envCommands = Map.insertWith (<>) name [commandArgs] (envCommands env)}
-
 importModuleToEnv :: ResolveableModule -> CompiledModule -> Environment -> Environment
 importModuleToEnv prefix CompiledModule{..} Environment{..} = Environment
-    { envCommands = Map.intersectionWith (<>) envCommands modCommands
-    , envUIdents = Map.intersectionWith (const $ const Collision) envUIdents $ Map.mapKeys (UIdent prefix) modUIdents
+    { envUIdents = Map.intersectionWith (const $ const Collision) envUIdents $ Map.mapKeys (UIdent prefix) modUIdents
     , envLIdents = Map.intersectionWith (const $ const Collision) envLIdents $ Map.mapKeys (prefix,) modLIdents
     }
 
 data CompiledModule = CompiledModule
     { modUIdents :: Map TypeName Type
     , modLIdents :: Map VarName ModLIdentDecl
-    , modCommands :: Map String [(CommandArgs Type, Type)]
     }
+
+instance Semigroup CompiledModule where
+    l <> r = CompiledModule
+        { modUIdents = modUIdents l <> modUIdents r
+        , modLIdents = modLIdents l <> modLIdents r
+        }
+instance Monoid CompiledModule where
+    mempty = CompiledModule mempty mempty

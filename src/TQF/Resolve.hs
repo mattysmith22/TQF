@@ -10,11 +10,13 @@ import Control.Monad (foldM, liftM)
 import Control.Arrow (first)
 import TQF.Type (Type)
 import qualified TQF.Type as Type
+import qualified Data.Map as Map
 import Data.Maybe
 import Data.Either.Extra (mapLeft)
 import Data.Tuple.Extra (firstM)
 import Control.Monad.State
 import Data.List.NonEmpty ( NonEmpty((:|)) )
+import Control.Monad.Trans.Writer.Lazy
 
 applyWhen :: Bool -> (a -> a) -> a -> a
 applyWhen True f = f
@@ -24,52 +26,58 @@ resolveModule
     :: Monad m
     => (ResolveableModule -> m CompiledModule)
     -> Module Parsed
-    -> m (Either EnvError (Module Resolved))
+    -> m (Either EnvError (Module Resolved, CompiledModule))
 resolveModule loadModule m@Module{..} = flip resolveModule' m <$> foldM handleImport emptyEnv moduleImports
     where
         handleImport env ImportStatement{..} = do
             compiledModule <- loadModule importName
             let qualifiedName = fromMaybe importName importAs
             return $ importModuleToEnv qualifiedName compiledModule
-                $ applyWhen (not importQualified) (importModuleToEnv [] compiledModule) env          
+                $ applyWhen (not importQualified) (importModuleToEnv [] compiledModule) env   
 
-resolveModule' :: Environment -> Module Parsed -> Either EnvError (Module Resolved) 
+resolveModule' :: Environment -> Module Parsed -> Either EnvError (Module Resolved, CompiledModule) 
 resolveModule' env Module{..} = do
-    env' <- foldM (addTopLevelDeclToEnv moduleName) env moduleDeclarations
+    (env',compiledModule) <- runWriterT $ foldM (addTopLevelDeclToEnv moduleName) env moduleDeclarations
     decls <- traverse (resolveDeclaration env') moduleDeclarations
-    return
-        Module
+    let moduleOut = Module
             { moduleName = moduleName
             , moduleImports = moduleImports
             , moduleDeclarations = decls
             }
+    return (moduleOut, compiledModule)
 
-addTopLevelDeclToEnv :: ResolveableModule -> Environment -> Declaration Parsed -> Either EnvError Environment
+addTopLevelDeclToEnv :: ResolveableModule -> Environment -> Declaration Parsed -> WriterT CompiledModule (Either EnvError) Environment
 addTopLevelDeclToEnv mod env (Annot r FunctionDecl{..}) = do
-    ret <- resolveType env functionType
-    args <- traverse (resolveType env . fst) functionArguments
+    ret <- lift $ resolveType env functionType
+    args <- lift $ traverse (resolveType env . fst) functionArguments
     let toAdd = ModFunction (mod, functionName) (unAnnot <$> args) (unAnnot ret)
+    tell (mempty { modLIdents = Map.singleton functionName toAdd})
     return $ addLIdent ([], functionName) toAdd env
 addTopLevelDeclToEnv mod env (Annot r VariableDecl{..}) = do
-    typ <- resolveType env variableType
+    typ <- lift $ resolveType env variableType
     let toAdd = ModGlobalVariable (mod, variableName) (unAnnot typ)
+    tell (mempty { modLIdents = Map.singleton variableName toAdd})
     return $ addLIdent ([], variableName) toAdd env
 addTopLevelDeclToEnv mod env (Annot r TypeDecl{..}) = do
-    typ <- resolveType env typeValue
+    typ <- lift $ resolveType env typeValue
+    tell (mempty { modUIdents = Map.singleton typeName $ unAnnot typ})
     return $ addUIdent (UIdent [] typeName) (unAnnot typ) env
 addTopLevelDeclToEnv mod env (Annot r CommandDecl{..}) = do
-    ret <- resolveType env commandReturnType
-    args <- traverse (resolveType env . fst) commandArgs
+    ret <- lift $ resolveType env commandReturnType
+    args <- lift $ traverse (resolveType env . fst) commandArgs
     let toAdd = ModCommand (mod, commandName) commandSQF (fmap unAnnot args) (unAnnot ret)
+    tell (mempty { modLIdents = Map.singleton commandName toAdd})
     return $ addLIdent ([], commandName) toAdd env
 addTopLevelDeclToEnv mod env (Annot r ExternalFunctionDecl{..}) = do
-    ret <- resolveType env functionType
-    args <- traverse (resolveType env . fst) functionArguments
+    ret <- lift $ resolveType env functionType
+    args <- lift $ traverse (resolveType env . fst) functionArguments
     let toAdd = ModExternalReference functionSQFName (Type.code (unAnnot <$> args) (unAnnot ret))
+    tell (mempty { modLIdents = Map.singleton functionName toAdd})
     return $ addLIdent ([], functionName) toAdd env
 addTopLevelDeclToEnv mod env (Annot r ExternalVariableDecl{..}) = do
-    typ <- resolveType env variableType
+    typ <- lift $ resolveType env variableType
     let toAdd = ModExternalReference variableSQFName (unAnnot typ)
+    tell (mempty { modLIdents = Map.singleton variableName toAdd})
     return $ addLIdent ([], variableName) toAdd env
 
 resolveDeclaration :: Environment -> Declaration Parsed -> Either EnvError (Declaration Resolved)
