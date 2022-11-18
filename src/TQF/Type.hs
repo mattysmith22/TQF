@@ -39,10 +39,12 @@ import qualified Data.Set as Set
 import Test.QuickCheck
 import Control.Arrow
 import Data.Foldable (traverse_, asum)
+import Data.List (intercalate)
 import Data.Maybe (fromJust, isJust, mapMaybe)
 import Control.Monad (unless)
 import Data.Either (isRight, fromLeft, fromRight)
 import SQF.Commands
+import TQF.AST (VarName(unVarName))
 
 class Within a where
     isWithin' :: a -> a -> Bool
@@ -397,3 +399,20 @@ validateUnOp validOps (Options x) = fmap mconcat $ mapM matches $ Set.toList x
         eitherOf (Left _) (Right x) = Right x
         eitherOf (Left x) (Left _) = Left x
         eitherOf (Right x) _ = Right x
+
+showTypePretty :: Type -> String
+showTypePretty Top = "top"
+showTypePretty (Options xs)
+    | Set.null xs = "bottom"
+    | otherwise = intercalate "|" $ fmap showBaseTypePretty $ Set.toList xs
+    where
+        showBaseTypePretty (SimpleType x) = simpleTypeToString x
+        showBaseTypePretty (ConstType (ConstString x)) = "\""++x++"\""
+        showBaseTypePretty (ConstType (ConstNumber x)) = show x
+        showBaseTypePretty (ConstType (ConstBool True)) = "true"
+        showBaseTypePretty (ConstType (ConstBool False)) = "false"
+        showBaseTypePretty (ArrayType x) = "[" ++ showTypePretty x ++ "]"
+        showBaseTypePretty (TupleType [x]) = "'(" ++ showTypePretty x ++ ")"
+        showBaseTypePretty (TupleType xs) = "(" ++ intercalate "," (fmap showTypePretty xs) ++ ")"
+        showBaseTypePretty (CodeType args ret) = "(" ++ intercalate "," (fmap showTypePretty args) ++ ") -> " ++ showTypePretty ret
+        showBaseTypePretty (RecordType fields) = "{" ++ intercalate ", " ((\(k,v) -> unVarName k ++ ": " ++ showTypePretty v) <$> Map.toList fields) ++ "}"

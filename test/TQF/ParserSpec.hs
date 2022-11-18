@@ -11,7 +11,7 @@ import           TQF.Type
 import           Test.Hspec
 
 shouldParse' :: String -> Module Parsed -> Expectation
-shouldParse' input ast = (runAlex input parse) `shouldBe` Right ast
+shouldParse' input ast = runAlex input parse `shouldBe` Right ast
 
 unfoldWhileM :: Monad m => (a -> Bool) -> m a -> m [a]
 unfoldWhileM p m = loop id
@@ -195,7 +195,7 @@ expressionSpec = do
     it "Should parse normal integer literals" $ do
       "15" `shouldParse` NumLiteral 15
       "0" `shouldParse` NumLiteral 0
-      "-15" `shouldParse` DirectCall "-" [a $ NumLiteral 15]
+      "-15" `shouldParse` UnOp (a NegOp) (a $ NumLiteral 15)
     it "Should parse normal decimal literals" $ do
       "0.15" `shouldParse` NumLiteral 0.15
     it "Should parse normal hex literals" $ "0x1a5" `shouldParse` NumLiteral 421
@@ -206,26 +206,26 @@ expressionSpec = do
         `shouldParse` StringLiteral "String \\n with \\\" escape \\t codes"
   describe "Unary Operators" $ do
     it "Should parse negate operators" $ do
-      "-(20)" `shouldParse` DirectCall "-" [ a $ NumLiteral 20]
+      "-(20)" `shouldParse` UnOp (a NegOp) (a $ NumLiteral 20)
     it "Should parse not operators" $ do
-      "!true" `shouldParse` DirectCall "!" [ a $ BoolLiteral True]
+      "!true" `shouldParse` UnOp (a NotOp) (a $ BoolLiteral True)
   describe "Binary Operators" $ do
     it "Should parse mathematical operators" $ do
-      "1+2" `shouldParse` DirectCall "+" [ a $ NumLiteral 1, a $ NumLiteral 2]
-      "1-2" `shouldParse` DirectCall "-" [ a $ NumLiteral 1, a $ NumLiteral 2]
-      "1*2" `shouldParse` DirectCall "*" [ a $ NumLiteral 1, a $ NumLiteral 2]
-      "1/2" `shouldParse` DirectCall "/" [ a $ NumLiteral 1, a $ NumLiteral 2]
-      "1%2" `shouldParse` DirectCall "%" [ a $ NumLiteral 1, a $ NumLiteral 2]
+      "1+2" `shouldParse` BinOp (a AddOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
+      "1-2" `shouldParse` BinOp (a SubOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
+      "1*2" `shouldParse` BinOp (a MulOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
+      "1/2" `shouldParse` BinOp (a DivOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
+      "1%2" `shouldParse` BinOp (a ModOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
     it "Should parse boolean operators" $ do
-      "1&&2" `shouldParse` DirectCall "&&" [ a $ NumLiteral 1, a $ NumLiteral 2]
-      "1||2" `shouldParse` DirectCall "||" [ a $ NumLiteral 1, a $ NumLiteral 2]
+      "1&&2" `shouldParse` BinOp (a AndOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
+      "1||2" `shouldParse` BinOp (a OrOp)  (a $ NumLiteral 1) (a $ NumLiteral 2)
     it "Should parse comparison operators" $ do
-      "1==2" `shouldParse` DirectCall "isEqualTo" [ a $ NumLiteral 1, a $ NumLiteral 2]
-      "1!=2" `shouldParse` DirectCall "isNotEqualTo" [ a $ NumLiteral 1, a $ NumLiteral 2]
-      "1<2" `shouldParse` DirectCall "<" [ a $ NumLiteral 1, a $ NumLiteral 2]
-      "1>2" `shouldParse` DirectCall ">" [ a $ NumLiteral 1, a $ NumLiteral 2]
-      "1>=2" `shouldParse` DirectCall ">=" [ a $ NumLiteral 1, a $ NumLiteral 2]
-      "1<=2" `shouldParse` DirectCall "<=" [ a $ NumLiteral 1, a $ NumLiteral 2]
+      "1==2" `shouldParse` BinOp (a EqOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
+      "1!=2" `shouldParse` BinOp (a NotEqOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
+      "1<2" `shouldParse` BinOp (a LessOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
+      "1>2" `shouldParse` BinOp (a GreaterOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
+      "1>=2" `shouldParse` BinOp (a GreaterEqualOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
+      "1<=2" `shouldParse` BinOp (a LessEqualOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
   describe "FunctionDecl calls" $ do
     it "Should parse a function call" $ "func(1, 2)" `shouldParse` FuncCall
       ( a $ varN' [] "func")
@@ -235,30 +235,19 @@ expressionSpec = do
     it "Should parse a single array" $ "[1]" `shouldParse` ArrayExpr [ a $ NumLiteral 1]
     it "Should parse multiple elements of an array" $ "[1, 2]" `shouldParse` ArrayExpr
       [ a $ NumLiteral 1, a $ NumLiteral 2]
-  describe "Direct calls" $ do
-    it "Should parse a nular direct call" $ "<sqfCommand>()" `shouldParse` DirectCall "sqfCommand" []
-    it "Should parse a unary direct call" $ "<sqfCommand>(1)" `shouldParse` DirectCall
-      "sqfCommand"
-      [ a $ NumLiteral 1]
-    it "Should parse a binary direct call" $ "<sqfCommand>(1,2)" `shouldParse` DirectCall
-      "sqfCommand"
-      [ a $ NumLiteral 1, a $ NumLiteral 2]
   describe "Type cast" $ it "Should parse a type cast" $ "<NS.Type>1" `shouldParse` Cast
     ( a $ extra $ typN' ["NS"] "Type")
     ( a $ NumLiteral 1)
   describe "Precedence" $ do
-    it "Precedence test 1" $ "1 + 2 * 3" `shouldParse` DirectCall
-      "+"
-      [  a $ NumLiteral 1
-      ,  a $ DirectCall "*" [ a $ NumLiteral 2, a $ NumLiteral 3]]
-    it "Precedence test 2" $ "(1 + 2) * 3" `shouldParse` DirectCall
-      "*"
-      [ a $ DirectCall "+" [ a $ NumLiteral 1, a $ NumLiteral 2]
-      , a $ NumLiteral 3]
-    it "Precedence test 3" $ "(1 + -2) * 3" `shouldParse` DirectCall
-      "*"
-      [ a $ DirectCall "+" [ a $ NumLiteral 1, a $ DirectCall "-" [a $ NumLiteral 2]]
-      , a $ NumLiteral 3]
+    it "Precedence test 1" $ "1 + 2 * 3" `shouldParse` BinOp (a AddOp)
+      (a $ NumLiteral 1)
+      (a $ BinOp (a MulOp) (a $ NumLiteral 2) (a $ NumLiteral 3))
+    it "Precedence test 2" $ "(1 + 2) * 3" `shouldParse` BinOp (a MulOp)
+      (a $ BinOp (a AddOp) (a $ NumLiteral 1) (a $ NumLiteral 2))
+      (a $ NumLiteral 3)
+    it "Precedence test 3" $ "(1 + -2) * 3" `shouldParse` BinOp (a MulOp)
+      (a $ BinOp (a AddOp) (a $ NumLiteral 1) (a $ UnOp (a NegOp) (a $ NumLiteral 2)))
+      (a $ NumLiteral 3)
  where
   shouldParse inp ast =
     testParse ("module Test where function func(): nil {return " ++  inp ++ ";}")
