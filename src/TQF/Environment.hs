@@ -19,6 +19,8 @@ import Data.List.NonEmpty
 import TQF.Type
 import Data.Maybe (fromMaybe)
 import SQF.Commands
+import Data.String.Pretty
+import Control.Arrow
 
 data Environment = Environment
     { envUIdents :: Map UIdent (CanCollide Type)
@@ -33,24 +35,27 @@ data CanCollide a = NoCollision a
     | Collision
     deriving (Show, Eq)
 
-data EnvError = EnvNotFound (Either UIdent LIdent)
-    | EnvCollision (Either UIdent LIdent)
-    | EnvIncorrectType (Either UIdent LIdent) String String
+data EnvError = EnvNotFound (Either (Annot UIdent) (Annot LIdent))
+    | EnvCollision (Either (Annot UIdent) (Annot LIdent))
     deriving (Show, Eq)
 
-unpackLookupError :: Either UIdent LIdent -> Maybe (CanCollide a) -> Either EnvError a
-unpackLookupError ident Nothing = Left $ EnvNotFound ident
-unpackLookupError ident (Just Collision) = Left $ EnvCollision ident
-unpackLookupError ident (Just (NoCollision x)) = return x
+instance Pretty EnvError where
+    prettyPrint (EnvNotFound x) = "Not found: " ++ either prettyPrint prettyPrint x
+    prettyPrint (EnvCollision x) = "Collision: " ++ either prettyPrint prettyPrint x
 
-lookupUIdent :: Environment -> UIdent -> Either EnvError Type
-lookupUIdent Environment{..} uident = unpackLookupError (Left uident) (Map.lookup uident envUIdents)
+unpackLookupError :: Range -> Either UIdent LIdent -> Maybe (CanCollide a) -> Either EnvError a
+unpackLookupError r ident Nothing = Left $ EnvNotFound $ Annot r +++ Annot r $ ident
+unpackLookupError r ident (Just Collision) = Left $ EnvCollision $ Annot r +++ Annot r $ ident
+unpackLookupError r ident (Just (NoCollision x)) = return x
+
+lookupUIdent :: Range -> Environment -> UIdent -> Either EnvError Type
+lookupUIdent r Environment{..} uident = unpackLookupError r (Left uident) (Map.lookup uident envUIdents)
 
 addUIdent :: UIdent -> Type -> Environment -> Environment
 addUIdent uident decl env = env { envUIdents = Map.insert uident (NoCollision decl) $ envUIdents env }
 
-lookupLIdent :: Environment -> LIdent -> Either EnvError ResolvedLIdent
-lookupLIdent Environment{..} x@(LIdent modl (name:|rest)) = flip ResolvedLIdent rest <$> unpackLookupError (Right x) (Map.lookup (modl,name) envLIdents)
+lookupLIdent :: Range -> Environment -> LIdent -> Either EnvError ResolvedLIdent
+lookupLIdent r Environment{..} x@(LIdent modl (name:|rest)) = flip ResolvedLIdent rest <$> unpackLookupError r (Right x) (Map.lookup (modl,name) envLIdents)
 
 addLIdent :: (ResolveableModule, VarName) -> ModLIdentDecl -> Environment -> Environment
 addLIdent lident decl env = env { envLIdents = Map.insert lident (NoCollision decl) $ envLIdents env }

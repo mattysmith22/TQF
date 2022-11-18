@@ -7,9 +7,10 @@ import TQF.Type
 import           Data.List.NonEmpty (NonEmpty((:|)))
 import           Data.Char (isLower)
 import qualified Data.List.NonEmpty as NE
-import           Data.List.Extra (unsnoc)
+import           Data.List.Extra (unsnoc, intercalate)
 import           Data.List.Split (splitOn)
 import           Data.Maybe (fromJust)
+import           Data.String.Pretty
 import           Control.Arrow
 import           SQF.Commands
 import           TQF.AST.Annotated
@@ -200,3 +201,35 @@ instance ToIdent UIdent where
     . fmap TypeName
     . splitOn "."
     
+instance Pretty VarName where
+  prettyPrint = unVarName
+instance Pretty TypeName where
+  prettyPrint = unTypeName
+instance Pretty LIdent where
+  prettyPrint (LIdent mod x)
+    = concatMap ((++".") . prettyPrint) mod
+    ++ intercalate "." (prettyPrint <$> NE.toList x)
+
+instance Pretty UIdent where
+  prettyPrint (UIdent mod x)
+    = concatMap ((++".") . prettyPrint) mod
+    ++ prettyPrint x
+
+instance Pretty BinaryOperator where
+  prettyPrint AndOp = "&&"
+  prettyPrint OrOp = "||"
+  prettyPrint AddOp = "+"
+  prettyPrint SubOp = "-"
+  prettyPrint DivOp = "/"
+  prettyPrint MulOp = "*"
+  prettyPrint ModOp = "%"
+  prettyPrint EqOp = "=="
+  prettyPrint NotEqOp = "!="
+  prettyPrint LessOp = "<"
+  prettyPrint GreaterOp = ">"
+  prettyPrint LessEqualOp = "<="
+  prettyPrint GreaterEqualOp = ">="
+
+instance Pretty UnaryOperator where
+  prettyPrint NotOp = "!"
+  prettyPrint NegOp = "-"

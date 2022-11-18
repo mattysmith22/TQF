@@ -157,14 +157,14 @@ resolveStatement' env VariableDeclaration{..} = do
         , varDeclValue = resExpr
         }
 resolveStatement' env FunctionCall{..} = do
-    function <- traverse (lookupLIdent env) functionCallName
+    function <- traverse (lookupLIdent (pos functionCallName) env) functionCallName
     args <- traverse (resolveExpr env) functionCallArgs
     return $ (,env) FunctionCall
         { functionCallName = function
         , functionCallArgs = args
         }
 resolveStatement' env Assignment{..} = do
-    var <- traverse (lookupLIdent env) assignmentVariable
+    var <- traverse (lookupLIdent (pos assignmentVariable) env) assignmentVariable
     expr <- resolveExpr env assignmentValue
     return $ (,env) Assignment
         { assignmentVariable = var
@@ -195,9 +195,9 @@ resolveExpr env = traverse (resolveExpr' env)
 
 resolveExpr' :: Environment -> Expr_ Parsed -> Either EnvError (Expr_ Resolved)
 resolveExpr' env (Variable x) =
-    Variable <$> traverse (lookupLIdent env) x
+    Variable <$> traverse (lookupLIdent (pos x) env) x
 resolveExpr' env (FuncCall n args) =
-    FuncCall <$> traverse (lookupLIdent env) n <*> traverse (resolveExpr env) args
+    FuncCall <$> traverse (lookupLIdent (pos n) env) n <*> traverse (resolveExpr env) args
 resolveExpr' env (BoolLiteral x) =
     return $ BoolLiteral x
 resolveExpr' env (NumLiteral x) =
@@ -216,4 +216,4 @@ resolveExpr' env (UnOp op x) =
     UnOp op <$> resolveExpr env x
 
 resolveType :: Environment -> Annot ASTType -> Either EnvError (Annot Type)
-resolveType env = traverse (Type.resolveType (lookupUIdent env))
+resolveType env typ = traverse (Type.resolveType (lookupUIdent (pos typ) env)) typ

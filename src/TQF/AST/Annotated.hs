@@ -2,6 +2,8 @@
 module TQF.AST.Annotated where
 
 import Test.QuickCheck (Arbitrary(..))
+import Data.Maybe (fromMaybe)
+import Data.String.Pretty
 
 data Pos = Pos
     { lines :: Int
@@ -60,7 +62,13 @@ instance Foldable Annot where
 instance Traversable Annot where
     traverse f (Annot p x) = Annot p <$> f x
 
+instance Pretty a => Pretty (Annot a) where
+    prettyPrint (Annot r x) = prettyPrint x ++ " (at " ++ prettyPrint r ++ ")"
+
 
 dispRange :: Range -> Maybe String
 dispRange (Range (Pos sl sc) (Pos el ec)) = Just $ show sl ++ ":" ++ show sc ++ "-" ++ show el ++ ":" ++ show ec
 dispRange NoPlace = Nothing
+
+instance Pretty Range where
+    prettyPrint = fromMaybe "unknown" . dispRange
