@@ -5,7 +5,7 @@ module TQF.Resolve
 
 import TQF.AST
 import TQF.AST.Annotated
-import TQF.Environment
+import TQF.Resolve.Env
 import Control.Monad (foldM, liftM)
 import Control.Arrow (first)
 import TQF.Type (Type)

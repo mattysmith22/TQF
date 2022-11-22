@@ -13,7 +13,7 @@ import           TQF.Parser                    as Parser
 import           TQF.Resolve                   as Resolve
 import           TQF.TypeCheck                 as TypeCheck
 import qualified TQF.CodeGen                   as CodeGen
-import           TQF.Environment (CompiledModule)
+import           TQF.Resolve.Env (CompiledModule)
 import qualified SQF.AST                       as SQF
 import           Data.List.Extra (nubOrd, intercalate, splitOn)
 import           Data.String.Pretty

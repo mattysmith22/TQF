@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, TupleSections #-}
-module TQF.Environment
+module TQF.Resolve.Env
     ( Environment(..)
     , CompiledModule(..)
     , EnvError
