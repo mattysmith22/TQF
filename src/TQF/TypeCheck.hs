@@ -95,17 +95,10 @@ typeCheckStatement' env _ (Return (Just x)) = do
     exprType `shouldBeWithin` returnType env
 
 typeCheckLIdent :: Annot ResolvedLIdent -> Either TypeCheckErr (Annot Type)
-typeCheckLIdent (Annot r (ResolvedLIdent initial fields)) = Annot r <$> foldrM go (identDeclToType initial) fields
+typeCheckLIdent (Annot r (ResolvedLIdent initial fields)) = Annot r <$> foldrM go (lIdentType initial) fields
     where
         go :: VarName -> Type -> Either TypeCheckErr Type
         go field x = note (NoField field (Annot r x)) $ lookupField (unVarName field) x
-
-        identDeclToType :: ModLIdentDecl -> Type
-        identDeclToType (ModFunction _ args ret) = code args ret
-        identDeclToType (ModGlobalVariable _ x) = x
-        identDeclToType (ModLocalVariable _ x) = x
-        identDeclToType (ModCommand _ _ args ret) = code args ret
-        identDeclToType (ModExternalReference _ x) = x
 
 typeCheckExpr :: Expr Resolved -> Either TypeCheckErr (Annot Type)
 typeCheckExpr (Annot r (Variable x)) = typeCheckLIdent x

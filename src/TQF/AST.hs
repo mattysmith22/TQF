@@ -26,11 +26,15 @@ type family LIdentF a where
   LIdentF Parsed = Annot LIdent
   LIdentF Resolved = Annot ResolvedLIdent
 
+type family DeclIdentF a where
+  DeclIdentF Parsed = VarName
+  DeclIdentF Resolved = ModLIdentDecl
+
 type family CommandF a where
   CommandF Parsed = String
   CommandF Resolved = (String, [(CommandArgs Type, Type)])
 
-type ValidASTLevel a = (Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a), Show (CommandF a), Eq (CommandF a))
+type ValidASTLevel a = (Show (DeclIdentF a), Eq (DeclIdentF a), Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a), Show (CommandF a), Eq (CommandF a))
 
 data Module a = Module
   { moduleName         :: ResolveableModule
@@ -51,28 +55,28 @@ data ImportStatement = ImportStatement
 type Declaration a = Annot (Declaration_ a)
 
 data Declaration_ a = FunctionDecl
-  { functionName          :: VarName
+  { functionName          :: DeclIdentF a
   , functionType          :: TypeDeclF a
-  , functionArguments     :: [(TypeDeclF a, VarName)]
+  , functionArguments     :: [(TypeDeclF a, DeclIdentF a)]
   , functionContent       :: Statement a
   } | VariableDecl
   { variableType :: TypeDeclF a
-  , variableName :: VarName
+  , variableName :: DeclIdentF a
   } | TypeDecl
   { typeName :: TypeName
   , typeValue :: TypeDeclF a
   } | CommandDecl
   { commandSQF :: String
-  , commandName :: VarName
+  , commandName :: DeclIdentF a
   , commandReturnType :: TypeDeclF a
-  , commandArgs :: [(TypeDeclF a, VarName)]
+  , commandArgs :: [(TypeDeclF a, DeclIdentF a)]
   } | ExternalFunctionDecl
-  { functionName          :: VarName
+  { functionName          :: DeclIdentF a
   , functionType          :: TypeDeclF a
-  , functionArguments     :: [(TypeDeclF a, VarName)]
+  , functionArguments     :: [(TypeDeclF a, DeclIdentF a)]
   , functionSQFName       :: String
   } | ExternalVariableDecl
-  { variableName          :: VarName
+  { variableName          :: DeclIdentF a
   , variableType          :: TypeDeclF a
   , variableSQFName       :: String
   }
@@ -163,11 +167,15 @@ type ResolveableModule = [TypeName]
 newtype TypeName = TypeName {unTypeName:: String}
     deriving (Eq, Ord)
 
-data ModLIdentDecl = ModFunction (ResolveableModule, VarName) [Type] Type
-  | ModCommand (ResolveableModule, VarName) String [Type] Type
-  | ModGlobalVariable (ResolveableModule, VarName) Type
-  | ModLocalVariable VarName Type
-  | ModExternalReference String Type
+data IdentKind = ValueKind | NularCommandKind | UnaryCommandKind | BinaryCommandKind
+    deriving (Show, Eq)
+data ModLIdentDecl = ModLIdentDecl
+  { lIdentModule :: ResolveableModule
+  , lIdentName :: VarName
+  , lIdentType :: Type
+  , lIdentKind :: IdentKind
+  , lIdentSQFName :: String
+  }
   deriving (Show, Eq)
 
 instance Show TypeName where

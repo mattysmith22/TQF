@@ -19,9 +19,9 @@ codeGenDecl modPath decl = unAnnot $ codeGenDecl' modPath <$> decl
 
 codeGenDecl' :: ResolveableModule -> Declaration_ Resolved -> [SQF.Statement]
 codeGenDecl' modPath FunctionDecl{..} = let
-    functionPath = sqfNameFor (ModFunction (modPath, functionName) [] mempty)
+    functionPath = lIdentSQFName functionName
     compiledStatements = codeGenTopLevelStatement env functionContent
-    paramsStatement = SQF.Expr $ SQF.UnOp "params" $ SQF.Array $ fmap (SQF.StringLit . ("_"++) . unVarName . snd) functionArguments
+    paramsStatement = SQF.Expr $ SQF.UnOp "params" $ SQF.Array $ fmap (SQF.StringLit . lIdentSQFName . snd) functionArguments
     scopeName = SQF.Expr $ SQF.UnOp "scopeName" $ SQF.StringLit functionPath
     env = CodeGenEnv functionPath
     in [SQF.Assign SQF.NoPrivate functionPath $ SQF.CodeBlock (paramsStatement:scopeName:compiledStatements)]
@@ -74,13 +74,6 @@ codeGenExpr x = codeGenExpr' $ unAnnot x
 
 codeGenExpr' :: Expr_ Resolved -> SQF.Expr
 codeGenExpr' (Variable lIdent) = getLIdent lIdent
-codeGenExpr' (FuncCall (Annot _ (ResolvedLIdent (ModCommand _ name argList _) _)) args) = let
-            args' = zipWith const (fmap codeGenExpr args ++ repeat (SQF.NulOp "nil")) argList
-            in case args' of
-                [] -> SQF.NulOp name
-                [x] -> SQF.UnOp name x
-                [l,r] -> SQF.BinOp name l r
-                xs -> error $ "Commands cannot have " ++ show (length xs) ++ " args"
 codeGenExpr' (FuncCall lIdent args) = SQF.BinOp "call" (SQF.Array $ codeGenExpr <$> args) (getLIdent lIdent)
 codeGenExpr' (BoolLiteral x) = SQF.BoolLit x
 codeGenExpr' (NumLiteral x) = SQF.NumLit x
@@ -112,25 +105,21 @@ getLIdent :: Annot ResolvedLIdent -> SQF.Expr
 getLIdent = getLIdent' . unAnnot
 
 getLIdent' :: ResolvedLIdent -> SQF.Expr
-getLIdent' x = foldr addFieldGet topLevelVar fields
+getLIdent' (ResolvedLIdent topDecl fields) = foldr addFieldGet topLevelVar fields
     where
-        (ResolvedLIdent topDecl fields) = x
-        topLevelVar = SQF.Variable $ sqfNameFor topDecl
+        topLevelVar = case lIdentKind topDecl of
+            ValueKind ->  SQF.Variable $ lIdentSQFName topDecl
+            NularCommandKind -> SQF.CodeBlock [SQF.Expr $ SQF.NulOp $ lIdentSQFName topDecl]
+            UnaryCommandKind -> SQF.CodeBlock [SQF.Expr $ SQF.UnOp (lIdentSQFName topDecl) (argNum 0)]
+            BinaryCommandKind -> SQF.CodeBlock [SQF.Expr $ SQF.BinOp (lIdentSQFName topDecl) (argNum 0) (argNum 1)]
         addFieldGet fieldName expr = SQF.BinOp "get" expr (SQF.StringLit $ unVarName fieldName)
+
+        argNum :: Double -> SQF.Expr
+        argNum x = SQF.BinOp "select" (SQF.Variable "_this") (SQF.NumLit x)
 
 setLIdent :: Annot ResolvedLIdent -> SQF.Expr -> Either SQF.Statement SQF.Expr
 setLIdent lident = setLIdent' (unAnnot lident)
 
 setLIdent' :: ResolvedLIdent -> SQF.Expr -> Either SQF.Statement SQF.Expr
-setLIdent' (ResolvedLIdent x []) expr = Left $ SQF.Assign SQF.NoPrivate (sqfNameFor x) expr
+setLIdent' (ResolvedLIdent x []) expr = Left $ SQF.Assign SQF.NoPrivate (lIdentSQFName x) expr
 setLIdent' (ResolvedLIdent x fields) expr = Right $ SQF.BinOp "set" (getLIdent' (ResolvedLIdent x (init fields))) $ SQF.Array [SQF.StringLit $ unVarName $ last fields, expr]
-
-sqfNameFor :: ModLIdentDecl -> String
-sqfNameFor (ModFunction (path, name) _ _)
-    = intercalate "_" (fmap unTypeName path) ++ "_fnc_"  ++ unVarName name
-sqfNameFor (ModGlobalVariable (path, name) _)
-    = intercalate "_" (fmap unTypeName path ++ [unVarName name])
-sqfNameFor (ModLocalVariable name _)
-    = "_" ++ unVarName name
-sqfNameFor (ModExternalReference name _) = name
-sqfNameFor (ModCommand _ name _ _) = error $ "Command " ++ name ++ " cannot be used as a lIdent"
