@@ -215,6 +215,9 @@ instance Pretty UIdent where
     = concatMap ((++".") . prettyPrint) mod
     ++ prettyPrint x
 
+instance Pretty ResolveableModule where
+  prettyPrint = intercalate "." . fmap prettyPrint
+
 instance Pretty BinaryOperator where
   prettyPrint AndOp = "&&"
   prettyPrint OrOp = "||"

@@ -50,6 +50,9 @@ executables:
     dependencies:
     - TQF
     - pretty-simple
+    - optparse-applicative
+    - filemanip
+    - filepath
 
 tests:
   TQF-test:
