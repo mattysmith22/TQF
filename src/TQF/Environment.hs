@@ -62,8 +62,8 @@ addLIdent lident decl env = env { envLIdents = Map.insert lident (NoCollision de
 
 importModuleToEnv :: ResolveableModule -> CompiledModule -> Environment -> Environment
 importModuleToEnv prefix CompiledModule{..} Environment{..} = Environment
-    { envUIdents = Map.intersectionWith (const $ const Collision) envUIdents $ Map.mapKeys (UIdent prefix) modUIdents
-    , envLIdents = Map.intersectionWith (const $ const Collision) envLIdents $ Map.mapKeys (prefix,) modLIdents
+    { envUIdents = Map.unionWith (const $ const Collision) envUIdents $ Map.mapKeys (UIdent prefix) $ fmap NoCollision modUIdents
+    , envLIdents = Map.unionWith (const $ const Collision) envLIdents $ Map.mapKeys (prefix,) $ fmap NoCollision modLIdents
     }
 
 data CompiledModule = CompiledModule

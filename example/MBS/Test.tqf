@@ -1,13 +1,11 @@
 module MBS.TestModule where
 
-global test : string
+import MBS.Library
 
+global test : string
 
 command systemChat (message: string): nil = "systemChat"
 command str (input: top): string = "str"
-
-external function nastyFunction (l: string, r: num): bool = "BAD_SCHEME_FNC_NASTYFUNCTION"
-external missionTime: num = "CBA_missionTime"
 
 --Working on compiling functions only first
 function functionName(arg: string): string {

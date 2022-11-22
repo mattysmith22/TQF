@@ -1,0 +1,4 @@
+module MBS.Library where
+
+external function nastyFunction (l: string, r: num): bool = "BAD_SCHEME_FNC_NASTYFUNCTION"
+external missionTime: num = "CBA_missionTime"

@@ -56,8 +56,6 @@ compileModule evalPath moduleName
       (Right (resolved,compiledModule)) -> case TypeCheck.typeCheck resolved of
           (Left err) -> error $ prettyPrint err
           (Right ()) -> do
-              putStrLn "Passed TypeCheck"
-              putStrLn $ SQF.prettyPrint $ CodeGen.codeGen resolved
               return (resolved, compiledModule)
 
 main :: IO ()
