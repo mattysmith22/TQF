@@ -12,6 +12,7 @@ import           TQF.Lexer                     as Lexer
 import           TQF.Parser                    as Parser
 import           TQF.Resolve                   as Resolve
 import           TQF.TypeCheck                 as TypeCheck
+import           TQF.CodeGen.Optimiser         as Optimiser
 import qualified TQF.CodeGen                   as CodeGen
 import           TQF.Resolve.Env (CompiledModule)
 import qualified SQF.AST                       as SQF
@@ -63,7 +64,7 @@ main = do
   CompileArgs{..} <- execParser argParser
   forM_ modulesToCompile $ \moduleName -> do
       (resolved, _) <- compileModule [] (fromMaybe (error $ moduleName ++ " is not a valid module name") $ splitModule moduleName)
-      putStrLn $ SQF.prettyPrint $ CodeGen.codeGen resolved
+      putStrLn $ SQF.prettyPrint $ fmap optimiseCommandCallStmt $ CodeGen.codeGen resolved
 
 splitModule :: String -> Maybe ResolveableModule
 splitModule = mapM readTypeName . splitOn "."
