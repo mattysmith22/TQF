@@ -64,7 +64,7 @@ main = do
   CompileArgs{..} <- execParser argParser
   forM_ modulesToCompile $ \moduleName -> do
       (resolved, _) <- compileModule [] (fromMaybe (error $ moduleName ++ " is not a valid module name") $ splitModule moduleName)
-      putStrLn $ SQF.prettyPrint $ fmap optimiseCommandCallStmt $ CodeGen.codeGen resolved
+      putStrLn $ SQF.prettyPrint $ fmap optimiseCommandCall $ CodeGen.codeGen resolved
 
 splitModule :: String -> Maybe ResolveableModule
 splitModule = mapM readTypeName . splitOn "."

@@ -1,23 +1,55 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module SQF.AST where
-
-data Statement = Assign Scope String Expr
-    | Expr Expr
-    deriving (Show, Eq)
 
 data Scope = Private | NoPrivate
     deriving (Show, Eq)
 
-data Expr = Variable String
-    | BinOp String Expr Expr
-    | UnOp String Expr
-    | NulOp String
-    | NumLit Double
-    | Array [Expr]
-    | StringLit String
-    | BoolLit Bool
-    | CodeBlock [Statement]
-    deriving (Show, Eq)
+data SQFType = SStmt | SExpr
+
+data SQF (a :: SQFType) where
+    Variable :: String -> SQF a
+    BinOp :: String -> SQF SExpr -> SQF SExpr -> SQF a
+    UnOp :: String -> SQF SExpr -> SQF a
+    NulOp :: String -> SQF a
+    NumLit :: Double -> SQF a
+    Array :: [SQF SExpr] -> SQF a
+    StringLit :: String -> SQF a
+    BoolLit :: Bool -> SQF a
+    CodeBlock :: [SQF SStmt] -> SQF a
+    Assign :: Scope -> String -> SQF SExpr -> SQF SStmt
+
+forceExpr :: SQF a -> SQF SExpr
+forceExpr x@Assign{} = UnOp "call" $ CodeBlock [x]
+forceExpr (Variable x) = Variable x
+forceExpr (BinOp c l r) = BinOp c l r
+forceExpr (UnOp c x) = UnOp c x
+forceExpr (NulOp c) = NulOp c
+forceExpr (NumLit x) = NumLit x
+forceExpr (Array xs) = Array xs
+forceExpr (StringLit x) = StringLit x
+forceExpr (BoolLit x) = BoolLit x
+forceExpr (CodeBlock xs) = CodeBlock xs
+
+forceStmt :: SQF a -> SQF SStmt
+forceStmt x@Assign{} = x
+forceStmt (Variable x) = Variable x
+forceStmt (BinOp c l r) = BinOp c l r
+forceStmt (UnOp c x) = UnOp c x
+forceStmt (NulOp c) = NulOp c
+forceStmt (NumLit x) = NumLit x
+forceStmt (Array xs) = Array xs
+forceStmt (StringLit x) = StringLit x
+forceStmt (BoolLit x) = BoolLit x
+forceStmt (CodeBlock xs) = CodeBlock xs
+
+deriving instance Eq (SQF SExpr)
+deriving instance Eq (SQF SStmt)
+deriving instance Show (SQF SExpr)
+deriving instance Show (SQF SStmt)
 
 newline :: Int -> ShowS
 newline x = showString $ "\n" ++ replicate (x*4) ' '
@@ -33,10 +65,10 @@ prettyPrint x = prettyPrintPrec 0 0 x ""
 class PrettyPrint a where
     prettyPrintPrec :: Int -> Int -> a -> ShowS
 
-instance PrettyPrint [Statement] where
+instance PrettyPrint [SQF SStmt] where
     prettyPrintPrec indent p xs = intercalate (newline indent) ((\x -> prettyPrintPrec indent p x . showString ";") <$> xs)
 
-instance PrettyPrint Statement where
+instance PrettyPrint (SQF a) where
     prettyPrintPrec indent _ (Assign Private name expr)
         = showString "private "
         . showString name
@@ -46,9 +78,6 @@ instance PrettyPrint Statement where
         = showString name 
         . showString " = "
         . prettyPrintPrec indent 0 expr
-    prettyPrintPrec indent _ (Expr x) = prettyPrintPrec indent 0 x
-
-instance PrettyPrint Expr where
     prettyPrintPrec _ _ (Variable x) = showString x
     prettyPrintPrec indent p (BinOp name l r) = let
         opPrec = precedenceOfBinOp name
