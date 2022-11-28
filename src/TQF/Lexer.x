@@ -48,9 +48,11 @@ tokens :-
   "qualified"	{ constToken TokenQualified }
   "as"		{ constToken TokenAs }
   "if"		{ constToken TokenIf }
+  "then"  { constToken TokenThen }
+  "exitWith" { constToken TokenExitWith }
   "else"		{ constToken TokenElse }
   "while"		{ constToken TokenWhile }
-  "return"	{ constToken TokenReturn }
+  "var"     { constToken TokenVar }
   "type" { constToken TokenType }
   "function" { constToken TokenFunction }
   "global" { constToken TokenGlobal}
@@ -114,9 +116,11 @@ data Token
   | TokenQualified
   | TokenAs
   | TokenIf
+  | TokenThen
+  | TokenExitWith
   | TokenElse
   | TokenWhile
-  | TokenReturn
+  | TokenVar
   | TokenType
   | TokenFunction
   | TokenGlobal
@@ -166,9 +170,11 @@ unLex TokenImport = "import"
 unLex TokenQualified = "qualified"
 unLex TokenAs = "as"
 unLex TokenIf = "if"
+unLex TokenThen = "then"
+unLex TokenExitWith = "exitWith"
 unLex TokenElse = "else"
 unLex TokenWhile = "while"
-unLex TokenReturn = "return"
+unLex TokenVar = "var"
 unLex TokenType = "type"
 unLex TokenFunction = "function"
 unLex TokenGlobal = "global"

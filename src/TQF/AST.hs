@@ -58,7 +58,7 @@ data Declaration_ a = FunctionDecl
   { functionName          :: DeclIdentF a
   , functionType          :: TypeDeclF a
   , functionArguments     :: [(TypeDeclF a, DeclIdentF a)]
-  , functionContent       :: Statement a
+  , functionContent       :: [Expr a]
   } | VariableDecl
   { variableType :: TypeDeclF a
   , variableName :: DeclIdentF a
@@ -98,50 +98,40 @@ instance Traversable CommandArgs where
   traverse f (CommandUnary x) = CommandUnary <$> f x
   traverse f (CommandBinary x y) = CommandBinary <$> f x <*> f y
 
-type Statement a = Annot (Statement_ a)
-
-data Statement_ a =
-    CodeBlock [Statement a]
-    | VariableDeclaration {
-        varDeclType:: TypeDeclF a,
-        varDeclName:: VarName,
-        varDeclValue:: Maybe (Expr a)
-    }
-    | FunctionCall {
-        functionCallName:: LIdentF a,
-        functionCallArgs:: [Expr a]
-    }
-    | Assignment {
-        assignmentVariable:: LIdentF a,
-        assignmentValue:: Expr a
-    }
-    | IfStatement {
-        ifStatementCondition:: Expr a,
-        ifStatementTrue:: Statement a,
-        ifStatementFalse:: Maybe (Statement a)
-    }
-    | WhileLoop {
-        whileLoopCondition:: Expr a,
-        whileLoopStatement:: Statement a
-    }
-    | Return (Maybe (Expr a))
-
-deriving instance ValidASTLevel a => Show (Statement_ a)
-deriving instance ValidASTLevel a => Eq (Statement_ a)
-
 type Expr a = Annot (Expr_ a) 
 
 data Expr_ a
- = Variable (LIdentF a)
- | FuncCall (LIdentF a) [Expr a]
- | BoolLiteral Bool
- | UnOp (Annot UnaryOperator) (Expr a)
- | BinOp (Annot BinaryOperator) (Expr a) (Expr a)
- | NumLiteral Double
- | StringLiteral String
- | ArrayExpr [Expr a]
- | Cast (TypeDeclF a) (Expr a)
- | Tuple [Expr a]
+  = Variable (LIdentF a)
+  | FuncCall (LIdentF a) [Expr a]
+  | BoolLiteral Bool
+  | UnOp (Annot UnaryOperator) (Expr a)
+  | BinOp (Annot BinaryOperator) (Expr a) (Expr a)
+  | NumLiteral Double
+  | StringLiteral String
+  | ArrayExpr [Expr a]
+  | Cast (TypeDeclF a) (Expr a)
+  | Tuple [Expr a]
+  | VariableDeclaration (TypeDeclF a) VarName (Maybe (Expr a))
+  | Assignment (LIdentF a) (Expr a)
+  | IfStatement (Expr a) (IfTrue [Expr a])
+  | WhileLoop (Expr a) [Expr a]
+
+data IfTrue a
+  = ThenDo a (Maybe a)
+  | ThenExitWith a
+  deriving (Show, Eq)
+
+instance Functor IfTrue where
+  fmap f (ThenDo t mf) = ThenDo (f t) (fmap f mf)
+  fmap f (ThenExitWith x) = ThenExitWith $ f x
+
+instance Foldable IfTrue where
+  foldMap f (ThenDo t mf) = f t <> foldMap f mf
+  foldMap f (ThenExitWith x) = f x
+
+instance Traversable IfTrue where
+  traverse f (ThenDo t mf) = ThenDo <$> f t <*> traverse f mf
+  traverse f (ThenExitWith x) = ThenExitWith <$> f x
 
 deriving instance ValidASTLevel a => Show (Expr_ a)
 deriving instance ValidASTLevel a => Eq (Expr_ a)

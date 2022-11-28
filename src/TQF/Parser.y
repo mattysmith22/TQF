@@ -7,6 +7,7 @@ import TQF.AST
 import TQF.AST.Annotated
 import qualified TQF.Type as Type
 import qualified Data.Map as Map
+import Data.Maybe
 import Data.List
 import Data.List.NonEmpty (NonEmpty((:|)))
 import SQF.Commands
@@ -25,9 +26,11 @@ import SQF.Commands
     qualified { Annot _ TokenQualified }
     as        { Annot _ TokenAs }
     if        { Annot _ TokenIf }
+    then      { Annot _ TokenThen }
+    exitWith  { Annot _ TokenExitWith }
     else      { Annot _ TokenElse }
     while     { Annot _ TokenWhile }
-    return    { Annot _ TokenReturn }
+    var       { Annot _ TokenVar }
     type      { Annot _ TokenType }
     function  { Annot _ TokenFunction }
     global    { Annot _ TokenGlobal }
@@ -137,7 +140,7 @@ TypeRecordField :: { (String, ASTType) }
     : LIdentSimple ':' Type { (unVarName $ unAnnot $1, unAnnot $3) }
 
 Declaration :: { Declaration Parsed }
-    : function LIdentSimple '(' FunctionDeclArguments ')' ':' Type CodeBlock { Annot (pos $1 <> pos $8) $ FunctionDecl (unAnnot $2) $7 $4 (fmap CodeBlock $8) }
+    : function LIdentSimple '(' FunctionDeclArguments ')' ':' Type CodeBlock { Annot (pos $1 <> pos $8) $ FunctionDecl (unAnnot $2) $7 $4 (unAnnot $8) }
     | type UIdentSimple '=' Type { Annot (pos $1 <> pos $4) $ TypeDecl (unAnnot $2) $4 }
     | global LIdentSimple ':' Type { Annot (pos $1 <> pos $4) $ VariableDecl $4 (unAnnot $2) }
     | command LIdentSimple '(' FunctionDeclArguments ')' ':' Type '=' String { Annot (pos $1 <> pos $9) $ CommandDecl (unAnnot $9) (unAnnot $2) $7 $4 }
@@ -152,47 +155,27 @@ FunctionDeclArguments :: { [(Annot ASTType, VarName)] }
 FunctionDeclArgument :: { (Annot ASTType, VarName) }
     : LIdentSimple ':' Type {($3, unAnnot $1)}
 
-CodeBlock :: { Annot [Statement Parsed] }
+CodeBlock :: { Annot [Expr Parsed] }
     : '{' Statements '}' {Annot (pos $1 <> pos $3) $2}
 
-Statements :: { [Statement Parsed] }
+Statements :: { [Expr Parsed] }
     : {- empty -} {[]}
-    | Statement {[$1]}
     | Statement Statements {$1:$2}
 
-StatementNoEndSemicolon :: { Statement Parsed }
-    : CodeBlock {fmap CodeBlock $1}
-    | if '(' Expr ')' IfStatements {Annot (pos $1 <> pos $5) $ IfStatement $3 (fst $ unAnnot $5) (snd $ unAnnot $5)}
-    | while '(' Expr ')' Statement {Annot (pos $1 <> pos $5) $ WhileLoop $3 $5}
+IfStatements :: { Annot (IfTrue [Expr Parsed]) }
+    : then CodeBlock MElse {Annot (pos $1 <> pos $2 <> pos $3) $ ThenDo (unAnnot $2) (unAnnot $3)}
+    | exitWith CodeBlock {Annot (pos $1 <> pos $2) $ ThenExitWith (unAnnot $2)}
 
-IfStatements :: { Annot (Statement Parsed, Maybe (Statement Parsed)) }
-    : StatementNoSemicolon else Statement {Annot (pos $1 <> pos $3) $ ($1, Just $3)}
-    | Statement {Annot (pos $1) $ ($1, Nothing)}
+MElse :: { Annot (Maybe [Expr Parsed]) }
+    : {- empty -} { Annot NoPlace Nothing}
+    | else CodeBlock { Annot (pos $1 <> pos $2) $ Just (unAnnot $2) }
 
-Statement :: { Statement Parsed }
-    : StatementNoEndSemicolon {$1}
-    | StatementEndSemicolon ';' {$1}
-
-StatementNoSemicolon :: { Statement Parsed }
-    : StatementNoEndSemicolon {$1}
-    | StatementEndSemicolon {$1}
-
-StatementEndSemicolon :: { Statement Parsed }
-    : LIdent LidentStatement { Annot (pos $1 <> pos $2) $ (unAnnot $2) $1}
-    | LIdentSimple ':' Type VariableDeclarationAssignment {Annot (pos $1 <> pos $3) $ VariableDeclaration $3 (unAnnot $1) $4}
-    | return ReturnValue { Annot (pos $1) $ Return $2}
-
-ReturnValue :: { Maybe (Expr Parsed) }
-    : {- empty -} {Nothing}
-    | Expr {Just $1}
+Statement :: { Expr Parsed }
+    : Expr ';' {$1}
 
 VariableDeclarationAssignment :: { Maybe (Expr Parsed) }
     : {- empty -} {Nothing}
     | '=' Expr {Just $2}
-
-LidentStatement :: { Annot (Annot LIdent -> Statement_ Parsed) }
-    : '=' Expr {Annot (pos $1 <> pos $2) $ (\s -> Assignment s $2)}
-    | '(' ExprList ')' {Annot (pos $1 <> pos $3) $ (\s -> FunctionCall s $2)}
 
 ExprList :: { [Expr Parsed] }
     : {- empty -} {[]}
@@ -215,7 +198,8 @@ Expr :: { Expr Parsed }
     | Expr '>' Expr  {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) GreaterOp) $1 $3}
     | '!' Expr {Annot (pos $1 <> pos $2) $ UnOp (Annot (pos $1) NotOp) $2}
     | '-' Expr %prec NEG {Annot (pos $1 <> pos $2) $ UnOp (Annot (pos $1) NegOp) $2}
-
+    | var LIdentSimple ':' Type VariableDeclarationAssignment {Annot ((pos $1 <> pos $4) <> fromMaybe NoPlace (fmap pos $5)) $ VariableDeclaration $4 (unAnnot $2) $5}
+    | LIdent '=' Expr {Annot (pos $1 <> pos $3) $ Assignment $1 $3}
     | LIdent {Annot (pos $1) $ Variable $1}
     | LIdent '(' ExprList ')' {Annot (pos $1 <> pos $4) $ FuncCall $1 $3}
     | Bool {fmap BoolLiteral $1}
@@ -225,6 +209,8 @@ Expr :: { Expr Parsed }
     | '(' ExprList ')' { Annot (pos $1 <> pos $3) $ tupleOrParens $2}
     | '\'(' ExprList ')' { Annot (pos $1 <> pos $3) $ Tuple $2}
     | '<' Type '>' Expr {Annot (pos $1 <> pos $4) $ Cast $2 $4}
+    | if '(' Expr ')' IfStatements {Annot (pos $1 <> pos $5) $ IfStatement $3 (unAnnot $5)}
+    | while '(' Expr ')' CodeBlock {Annot (pos $1 <> pos $5) $ WhileLoop $3 (unAnnot $5)}
 
 ModuleIdent :: { Annot ResolveableModule }
     : UIdent {fmap typeToModuleIdent $1}
