@@ -120,6 +120,7 @@ data Expr_ a
   | Tuple [Expr a]
   | IfStatement (Expr a) (IfTrue [Statement a])
   | WhileLoop (Expr a) [Statement a]
+  | NilLit
 
 data IfTrue a
   = ThenDo a (Maybe a)

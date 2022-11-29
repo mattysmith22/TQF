@@ -95,6 +95,7 @@ codeGenExpr env x = f $ unAnnot x
                 toString GreaterOp = ">"
                 toString LessEqualOp = "<="
                 toString GreaterEqualOp = ">="
+        f NilLit = SQF.NulOp "nil"
 
 getLIdent :: Annot ResolvedLIdent -> SQF SExpr
 getLIdent = getLIdent' . unAnnot

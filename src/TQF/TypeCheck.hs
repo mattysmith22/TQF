@@ -101,6 +101,7 @@ typeCheckExpr (Annot r (WhileLoop cond stmt)) = do
     typeOfCond <- typeCheckExpr cond
     lift $ typeOfCond `shouldBeWithin` Annot (pos cond) (simpleType Bool)
     lift $ typeCheckBlock stmt
+typeCheckExpr (Annot r NilLit) = return (Annot r $ simpleType Nil)
 
 typeCheckBlock :: [Statement Resolved] -> Either TypeCheckErr (Annot Type)
 typeCheckBlock = fmap f . runWriterT . traverse typeCheckStmt

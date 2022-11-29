@@ -70,6 +70,7 @@ import SQF.Commands
     lident { $$@(Annot _ (TokenIdentLower _)) }
     uidentSimple { $$@(Annot _ (TokenIdentUpper (UIdent [] _)))}
     uident { $$@(Annot _ (TokenIdentUpper _)) }
+    nil { $$@(Annot _ (TokenSimpleType Type.Nil))}
     simpletype { $$@(Annot _ (TokenSimpleType _)) }
 
 %left '||'
@@ -214,6 +215,7 @@ Expr :: { Expr Parsed }
     | '<' Type '>' Expr {Annot (pos $1 <> pos $4) $ Cast $2 $4}
     | if '(' Expr ')' IfStatements {Annot (pos $1 <> pos $5) $ IfStatement $3 (unAnnot $5)}
     | while '(' Expr ')' CodeBlock {Annot (pos $1 <> pos $5) $ WhileLoop $3 (unAnnot $5)}
+    | nil {Annot (pos $1) NilLit}
 
 ModuleIdent :: { Annot ResolveableModule }
     : UIdent {fmap typeToModuleIdent $1}
@@ -236,6 +238,7 @@ UIdent :: { Annot UIdent }
     | uident { (\(Annot r (TokenIdentUpper x)) -> Annot r x) $1 }
 SimpleType :: { Annot Type.SimpleType }
     : simpletype { (\(Annot r (TokenSimpleType x)) -> Annot r x) $1 }
+    | nil { (\(Annot r (TokenSimpleType x)) -> Annot r x) $1 }
 
 {
 

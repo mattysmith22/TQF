@@ -251,6 +251,7 @@ resolveExpr' env (WhileLoop cond stmt) = do
     (cond', env') <- resolveExpr env cond
     stmt' <- fst <$> resolveStmts env' stmt
     return (WhileLoop cond' stmt', env)
+resolveExpr' env NilLit = return (NilLit, env)
 
 resolveStmts :: Environment -> [Statement Parsed] -> Either EnvError ([Statement Resolved], Environment)
 resolveStmts env exprs = runStateT (traverse f exprs) env
