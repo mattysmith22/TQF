@@ -143,7 +143,7 @@ resolveDeclaration' :: Environment -> Either Type ModLIdentDecl -> Declaration_ 
 resolveDeclaration' env idnt d@FunctionDecl{..} = do
     ret <- resolveType env functionType
     args <- traverse (fmap (fst &&& uncurry createLocalDecl) . firstM (resolveType env)) functionArguments
-    stmt <- fst <$> resolveExprs (addArgsToEnv args env) functionContent
+    stmt <- fst <$> resolveStmts (addArgsToEnv args env) functionContent
     return FunctionDecl
         { functionName = fromRight (error "Function returned a type decl") idnt
         , functionType = ret
@@ -200,6 +200,23 @@ createLocalDecl typ var = ModLIdentDecl
             , lIdentSQFName = "_" ++ unVarName var
             }
 
+resolveStatement :: Environment -> Statement Parsed -> Either EnvError (Statement Resolved, Environment)
+resolveStatement env x = do
+    (x', env) <- resolveStatement' env (unAnnot x)
+    return (Annot (pos x) x', env)
+
+resolveStatement' :: Environment -> Statement_ Parsed -> Either EnvError (Statement_ Resolved, Environment)
+resolveStatement' env (VariableDeclaration typ name mExpr) = do
+    typ' <- resolveType env typ
+    resExpr <- traverse (fmap fst . resolveExpr env) mExpr
+    let env' = addLIdent ([], name) (createLocalDecl typ' name) env
+    return $ (,env') $ VariableDeclaration typ' name resExpr
+resolveStatement' env (Assignment var expr) = do
+    var' <- traverse (lookupLIdent (pos var) env) var
+    expr' <- fst <$> resolveExpr env expr
+    return $ (,env) $ Assignment var' expr'
+resolveStatement' env (Expr x) = first Expr <$> resolveExpr env x
+
 resolveExpr :: Environment -> Expr Parsed -> Either EnvError (Expr Resolved, Environment)
 resolveExpr env x = do
     (x', env) <- resolveExpr' env (unAnnot x)
@@ -225,32 +242,23 @@ resolveExpr' env (Tuple xs) =
 resolveExpr' env (BinOp op l r) =
     fmap (,env) $ BinOp op <$> (fst <$> resolveExpr env l) <*> (fst <$> resolveExpr env r)
 resolveExpr' env (UnOp op x) =
-    (,env) . UnOp op . fst <$> resolveExpr env x  
-resolveExpr' env (VariableDeclaration typ name mExpr) = do
-    typ' <- resolveType env typ
-    resExpr <- traverse (fmap fst . resolveExpr env) mExpr
-    let env' = addLIdent ([], name) (createLocalDecl typ' name) env
-    return $ (,env') $ VariableDeclaration typ' name resExpr
-resolveExpr' env (Assignment var expr) = do
-    var' <- traverse (lookupLIdent (pos var) env) var
-    expr' <- fst <$> resolveExpr env expr
-    return $ (,env) $ Assignment var' expr'
+    (,env) . UnOp op . fst <$> resolveExpr env x
 resolveExpr' env (IfStatement cond stmts) = do
     (cond', env') <- resolveExpr env cond
-    stmts' <- traverse (fmap fst . resolveExprs env') stmts
+    stmts' <- traverse (fmap fst . resolveStmts env') stmts
     return $ (,env) $ IfStatement cond' stmts'
 resolveExpr' env (WhileLoop cond stmt) = do
     (cond', env') <- resolveExpr env cond
-    stmt' <- fst <$> resolveExprs env' stmt
+    stmt' <- fst <$> resolveStmts env' stmt
     return (WhileLoop cond' stmt', env)
 
-resolveExprs :: Environment -> [Expr Parsed] -> Either EnvError ([Expr Resolved], Environment)
-resolveExprs env exprs = runStateT (traverse f exprs) env
+resolveStmts :: Environment -> [Statement Parsed] -> Either EnvError ([Statement Resolved], Environment)
+resolveStmts env exprs = runStateT (traverse f exprs) env
     where
-        f :: Expr Parsed -> StateT Environment (Either EnvError) (Expr Resolved)
+        f :: Statement Parsed -> StateT Environment (Either EnvError) (Statement Resolved)
         f stmt = do
             env <- get
-            (stmt', env') <- lift $ resolveExpr env stmt
+            (stmt', env') <- lift $ resolveStatement env stmt
             put env'
             return stmt'
 

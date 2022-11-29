@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7019bab7c8a00d04fbfef4baff50bb520165aa412e6569387ab710771dd47f95
+-- hash: 1999466d8856e317ee02845b91ef2493e1f41a507fe3246ecabac685e56d07a1
 
 name:           TQF
 version:        0.1.0.0
@@ -98,7 +98,6 @@ test-suite TQF-test
   other-modules:
       Data.ZipSpec
       Helpers
-      TQF.IntegrationSpec
       TQF.LexerSpec
       TQF.ParserSpec
       TQF.TypeSpec

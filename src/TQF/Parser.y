@@ -109,12 +109,15 @@ Declarations :: { [Declaration Parsed] }
     | Declarations Declaration { $2 : $1 }
 
 Type :: { Annot ASTType }
+    : BaseType { $1 }
+    | BaseType '|' Type { $1 <> $3 }
+
+BaseType :: { Annot ASTType }
     : SimpleType { fmap Type.simpleType $1 }
     | Num { fmap Type.constNumber $1 }
     | String { fmap Type.constString $1 }
     | Bool { fmap Type.constBool $1 }
     | top { Annot (pos $1) Type.top }
-    | Type '|' Type { Annot (pos $1 <> pos $3) (unAnnot $1 <> unAnnot $3) }
     | '(' Type ')' { Annot (pos $1 <> pos $3) (unAnnot $2) }
     | UIdent { fmap Type.extra $1 }
 
@@ -155,23 +158,25 @@ FunctionDeclArguments :: { [(Annot ASTType, VarName)] }
 FunctionDeclArgument :: { (Annot ASTType, VarName) }
     : LIdentSimple ':' Type {($3, unAnnot $1)}
 
-CodeBlock :: { Annot [Expr Parsed] }
+CodeBlock :: { Annot [Statement Parsed] }
     : '{' Statements '}' {Annot (pos $1 <> pos $3) $2}
 
-Statements :: { [Expr Parsed] }
+Statements :: { [Statement Parsed] }
     : {- empty -} {[]}
-    | Statement Statements {$1:$2}
+    | Statement ';' Statements {$1:$3}
 
-IfStatements :: { Annot (IfTrue [Expr Parsed]) }
+IfStatements :: { Annot (IfTrue [Statement Parsed]) }
     : then CodeBlock MElse {Annot (pos $1 <> pos $2 <> pos $3) $ ThenDo (unAnnot $2) (unAnnot $3)}
     | exitWith CodeBlock {Annot (pos $1 <> pos $2) $ ThenExitWith (unAnnot $2)}
 
-MElse :: { Annot (Maybe [Expr Parsed]) }
+MElse :: { Annot (Maybe [Statement Parsed]) }
     : {- empty -} { Annot NoPlace Nothing}
     | else CodeBlock { Annot (pos $1 <> pos $2) $ Just (unAnnot $2) }
 
-Statement :: { Expr Parsed }
-    : Expr ';' {$1}
+Statement :: { Statement Parsed }
+    : var LIdentSimple ':' Type VariableDeclarationAssignment {Annot ((pos $1 <> pos $4) <> fromMaybe NoPlace (fmap pos $5)) $ VariableDeclaration $4 (unAnnot $2) $5}
+    | LIdent '=' Expr {Annot (pos $1 <> pos $3) $ Assignment $1 $3}
+    | Expr { Annot (pos $1) $ Expr $1 }
 
 VariableDeclarationAssignment :: { Maybe (Expr Parsed) }
     : {- empty -} {Nothing}
@@ -198,8 +203,6 @@ Expr :: { Expr Parsed }
     | Expr '>' Expr  {Annot (pos $1 <> pos $3) $ BinOp (Annot (pos $2) GreaterOp) $1 $3}
     | '!' Expr {Annot (pos $1 <> pos $2) $ UnOp (Annot (pos $1) NotOp) $2}
     | '-' Expr %prec NEG {Annot (pos $1 <> pos $2) $ UnOp (Annot (pos $1) NegOp) $2}
-    | var LIdentSimple ':' Type VariableDeclarationAssignment {Annot ((pos $1 <> pos $4) <> fromMaybe NoPlace (fmap pos $5)) $ VariableDeclaration $4 (unAnnot $2) $5}
-    | LIdent '=' Expr {Annot (pos $1 <> pos $3) $ Assignment $1 $3}
     | LIdent {Annot (pos $1) $ Variable $1}
     | LIdent '(' ExprList ')' {Annot (pos $1 <> pos $4) $ FuncCall $1 $3}
     | Bool {fmap BoolLiteral $1}

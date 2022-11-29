@@ -46,6 +46,18 @@ typeCheckDeclaration (Annot _ CommandDecl{..}) = return ()
 typeCheckDeclaration (Annot _ ExternalFunctionDecl{..}) = return ()
 typeCheckDeclaration (Annot _ ExternalVariableDecl{..}) = return ()
 
+typeCheckStmt :: Statement Resolved -> WriterT (Maybe (Annot Type)) (Either TypeCheckErr) (Annot Type)
+typeCheckStmt (Annot r (VariableDeclaration typ _ mexpr)) = do
+    exprType <- maybe (return $ Annot (pos typ) $ simpleType Nil) typeCheckExpr mexpr
+    lift $ exprType `shouldBeWithin` typ
+    return $ Annot r $ simpleType Nil
+typeCheckStmt (Annot r (Assignment var val)) = do
+    typeOfVar <- lift $ typeCheckLIdent var
+    exprType <- typeCheckExpr val
+    lift $ exprType `shouldBeWithin` typeOfVar
+    return $ Annot r $ simpleType Nil
+typeCheckStmt (Annot r (Expr x)) = typeCheckExpr x
+
 typeCheckExpr :: Expr Resolved -> WriterT (Maybe (Annot Type)) (Either TypeCheckErr) (Annot Type)
 typeCheckExpr (Annot r (Variable x)) = lift $ typeCheckLIdent x
 typeCheckExpr (Annot r (FuncCall f args)) = do
@@ -81,15 +93,6 @@ typeCheckExpr (Annot _ (Cast typ x)) = do
     _ <- typeCheckExpr x
     return typ
 typeCheckExpr (Annot r (Tuple xs)) = Annot r . tuple . map unAnnot <$> traverse typeCheckExpr xs
-typeCheckExpr (Annot r (VariableDeclaration typ _ mexpr)) = do
-    exprType <- maybe (return $ Annot (pos typ) $ simpleType Nil) typeCheckExpr mexpr
-    lift $ exprType `shouldBeWithin` typ
-    return $ Annot r $ simpleType Nil
-typeCheckExpr (Annot r (Assignment var val)) = do
-    typeOfVar <- lift $ typeCheckLIdent var
-    exprType <- typeCheckExpr val
-    lift $ exprType `shouldBeWithin` typeOfVar
-    return $ Annot r $ simpleType Nil
 typeCheckExpr (Annot r (IfStatement cond ifT)) = do
     typeOfCond <- typeCheckExpr cond
     lift $ typeOfCond `shouldBeWithin` Annot (pos cond) (simpleType Bool)
@@ -99,8 +102,8 @@ typeCheckExpr (Annot r (WhileLoop cond stmt)) = do
     lift $ typeOfCond `shouldBeWithin` Annot (pos cond) (simpleType Bool)
     lift $ typeCheckBlock stmt
 
-typeCheckBlock :: [Expr Resolved] -> Either TypeCheckErr (Annot Type)
-typeCheckBlock = fmap f . runWriterT . traverse typeCheckExpr
+typeCheckBlock :: [Statement Resolved] -> Either TypeCheckErr (Annot Type)
+typeCheckBlock = fmap f . runWriterT . traverse typeCheckStmt
     where
         f :: ([Annot Type], Maybe (Annot Type)) -> Annot Type
         f (typs, mExitWith) =

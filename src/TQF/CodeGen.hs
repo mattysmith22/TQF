@@ -28,20 +28,25 @@ codeGenDecl' modPath FunctionDecl{..} = let
     in [SQF.Assign SQF.NoPrivate functionPath $ SQF.CodeBlock (paramsStatement:compiledStatements)]
 codeGenDecl' _ _ = []
 
-codeGenExpr :: CodeGenEnv -> Expr Resolved -> SQF SExpr
-codeGenExpr env = SQF.forceExpr . codeGenStmt env
+
 
 ensureBlock :: SQF SStmt -> SQF SExpr
 ensureBlock (SQF.CodeBlock xs) = SQF.CodeBlock xs
 ensureBlock x = SQF.CodeBlock [x]
 
-codeGenStmt :: CodeGenEnv -> Expr Resolved -> SQF SStmt
+codeGenStmt :: CodeGenEnv -> Statement Resolved -> SQF SStmt
 codeGenStmt env stmt = unAnnot $ f <$> stmt
     where
         f (VariableDeclaration _ idnt mval) = case mval of
             Nothing -> SQF.UnOp "private" $ SQF.StringLit ("_" ++ unVarName idnt)
             (Just expr) -> SQF.Assign SQF.Private ("_" ++ unVarName idnt) (codeGenExpr env expr)
         f (Assignment idnt expr) = setLIdent idnt (codeGenExpr env expr)
+        f (Expr x) = SQF.forceStmt $ codeGenExpr env x
+
+codeGenExpr :: CodeGenEnv -> Expr Resolved -> SQF SExpr
+codeGenExpr env x = f $ unAnnot x
+    where
+        f :: Expr_ Resolved -> SQF SExpr
         f (IfStatement cond subStmts) =
             let cond' = codeGenExpr env cond
             in case subStmts of
@@ -61,15 +66,15 @@ codeGenStmt env stmt = unAnnot $ f <$> stmt
                             (SQF.CodeBlock (fmap (codeGenStmt env) expr))
         f (WhileLoop cond stmt) =
             let
-                loopExpr = ensureBlock $ SQF.CodeBlock $ fmap (codeGenStmt env) stmt
-            in SQF.BinOp "do" (SQF.UnOp "while" (ensureBlock $ codeGenStmt env cond)) loopExpr
-        f (Variable lIdent) = SQF.forceStmt $ getLIdent lIdent
+                loopExpr = SQF.CodeBlock $ fmap (codeGenStmt env) stmt
+            in SQF.BinOp "do" (SQF.UnOp "while" (SQF.CodeBlock [SQF.forceStmt $ codeGenExpr env cond])) loopExpr
+        f (Variable lIdent) = getLIdent lIdent
         f (FuncCall lIdent args) = SQF.BinOp "call" (SQF.Array $ codeGenExpr env <$> args) (getLIdent lIdent)
         f (BoolLiteral x) = SQF.BoolLit x
         f (NumLiteral x) = SQF.NumLit x
         f (StringLiteral x) = SQF.StringLit x
         f (ArrayExpr xs) = SQF.Array $ codeGenExpr env <$> xs
-        f (Cast _ x) = codeGenStmt env x
+        f (Cast _ x) = codeGenExpr env x
         f (Tuple xs) = SQF.Array $ fmap (codeGenExpr env) xs
         f (UnOp op x) = SQF.UnOp (toString $ unAnnot op) $ codeGenExpr env x
             where

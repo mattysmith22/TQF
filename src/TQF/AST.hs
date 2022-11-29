@@ -58,7 +58,7 @@ data Declaration_ a = FunctionDecl
   { functionName          :: DeclIdentF a
   , functionType          :: TypeDeclF a
   , functionArguments     :: [(TypeDeclF a, DeclIdentF a)]
-  , functionContent       :: [Expr a]
+  , functionContent       :: [Statement a]
   } | VariableDecl
   { variableType :: TypeDeclF a
   , variableName :: DeclIdentF a
@@ -98,7 +98,14 @@ instance Traversable CommandArgs where
   traverse f (CommandUnary x) = CommandUnary <$> f x
   traverse f (CommandBinary x y) = CommandBinary <$> f x <*> f y
 
-type Expr a = Annot (Expr_ a) 
+type Statement a = Annot (Statement_ a)
+
+data Statement_ a
+  = VariableDeclaration (TypeDeclF a) VarName (Maybe (Expr a))
+  | Assignment (LIdentF a) (Expr a)
+  | Expr (Expr a)
+
+type Expr a = Annot (Expr_ a)
 
 data Expr_ a
   = Variable (LIdentF a)
@@ -111,10 +118,8 @@ data Expr_ a
   | ArrayExpr [Expr a]
   | Cast (TypeDeclF a) (Expr a)
   | Tuple [Expr a]
-  | VariableDeclaration (TypeDeclF a) VarName (Maybe (Expr a))
-  | Assignment (LIdentF a) (Expr a)
-  | IfStatement (Expr a) (IfTrue [Expr a])
-  | WhileLoop (Expr a) [Expr a]
+  | IfStatement (Expr a) (IfTrue [Statement a])
+  | WhileLoop (Expr a) [Statement a]
 
 data IfTrue a
   = ThenDo a (Maybe a)
@@ -135,6 +140,8 @@ instance Traversable IfTrue where
 
 deriving instance ValidASTLevel a => Show (Expr_ a)
 deriving instance ValidASTLevel a => Eq (Expr_ a)
+deriving instance ValidASTLevel a => Show (Statement_ a)
+deriving instance ValidASTLevel a => Eq (Statement_ a)
 
 data UnaryOperator = NotOp | NegOp
     deriving (Show, Eq)
