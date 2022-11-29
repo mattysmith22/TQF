@@ -232,7 +232,7 @@ expressionSpec = do
                      ]
                    )
 
-spec = do
+spec = parallel $ do
   describe "Module declaration" moduleSpec
   describe "Import declaration" importSpec
   describe "Declarations"       declarationSpec

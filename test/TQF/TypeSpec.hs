@@ -16,7 +16,7 @@ withinEachOther :: Type -> Type -> Bool
 withinEachOther l r = l `isWithin` r && r `isWithin` l
 
 spec :: Spec
-spec = modifyMaxSuccess (const 10000) $ do
+spec = parallel $ modifyMaxSuccess (const 10000) $ do
     describe "monoid" $ do
         it "Anything merged with Top is Top" $ do
             (top <> top) `shouldBe` (top :: Type)

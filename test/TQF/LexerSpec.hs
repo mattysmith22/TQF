@@ -67,7 +67,7 @@ symbols =
   , ("!" , TokenNot)
   ]
 
-spec = do
+spec = parallel $ do
   describe "Comments and spaces" $ do
     it "Should skip inline comments" $ "--testComment" `shouldLex` []
     it "Should continue inline comments after the end of line"
