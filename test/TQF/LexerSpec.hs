@@ -37,7 +37,6 @@ reservedWords =
   , ("if"       , TokenIf)
   , ("else"     , TokenElse)
   , ("while"    , TokenWhile)
-  , ("return"   , TokenReturn)
   , ("false"    , TokenBool False)
   , ("true"     , TokenBool True)
   ]

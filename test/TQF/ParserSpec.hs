@@ -63,14 +63,14 @@ declarationSpec = do
       `shouldParse` [ a $ FunctionDecl (l "functionName")
                                    (a $ simpleType String)
                                    [(a $ simpleType Nil, l "input")]
-                                   (a $ CodeBlock [])
+                                   []
                     ]
   it "Should parse a function declaration with namespaced types" $ do
     "function functionName(input: NS.Void): NS.String {}"
       `shouldParse` [ a $ FunctionDecl (l "functionName")
                                    (a $ extra $ UIdent [u "NS"] (u "String"))
                                    [(a $ extra $ UIdent [u "NS"] (u "Void"), l "input")]
-                                   ( a $ CodeBlock [])
+                                   []
                     ]
   it "Should parse a function declaration with multiple arguments" $ do
     "function functionName(input: nil, input2: num): string {}"
@@ -78,18 +78,18 @@ declarationSpec = do
                         (l "functionName")
                         (a $ simpleType String)
                         [(a $ simpleType Nil, l "input"), (a $ simpleType Number, l "input2")]
-                        ( a $ CodeBlock [])
+                        []
                     ]
   it "Should parse multiple function declarations"
     $             "function functionName(input: nil): string {} function functionName2(input2: string): num {}"
     `shouldParse` [ a $ FunctionDecl (l "functionName")
                                  (a $ simpleType String)
                                  [(a $ simpleType Nil, l "input")]
-                                 (a $ CodeBlock [])
+                                 []
                   , a $ FunctionDecl (l "functionName2")
                                  (a $ simpleType Number)
                                  [(a $ simpleType String, l "input2")]
-                                 (a $ CodeBlock [])
+                                 []
                   ]
   it "Should parse an external function declarations"
     $ "external function functionName(input: nil, input2: num): bool = \"test\""
@@ -111,74 +111,24 @@ declarationSpec = do
     `shouldBe` Right (Module [u "Test"] [] ast)
 
 statementSpec = do
-  describe "FunctionDecl call" $ do
-    it "Should parse a normal function call"
-      $             "func(1,\"test\");"
-      `shouldParse` [ a $ FunctionCall ( a $ toIdent "func") [a $ NumLiteral 1, a $ StringLiteral "test"]]
-    it "Should parse an empty function call"
-      $             "func();"
-      `shouldParse` [ a $ FunctionCall ( a $ toIdent "func") []]
-    it "Should parse a function call in another namespace"
-      $             "Test.func(1);"
-      `shouldParse` [ a $ FunctionCall ( a $ toIdent "Test.func") [a $ NumLiteral 1]]
-  describe "Return" $ do
-    it "Should parse a normal return statement"
-      $             "return 1;"
-      `shouldParse` [a $ Return $ Just $ a $ NumLiteral 1]
-    it "Should parse a return statement without a value" $ "return;" `shouldParse` [ a $ Return Nothing]
-  describe "Code Block" $ do
-    it "Should parse a normal empty code block statement" $ "{}" `shouldParse` [ a $ CodeBlock []]
-    it "Should parse a normal code block with a single internal statement"
-      $             "{return 1;}"
-      `shouldParse` [a $ CodeBlock [a $ Return $ Just $ a $ NumLiteral 1]]
-    it "Should parse a normal code block with multiple internal statements"
-      $             "{return 1; return 2;}"
-      `shouldParse` [a $ CodeBlock [a $ Return $ Just $ a $ NumLiteral 1, a $ Return $ Just $ a $ NumLiteral 2]]
   describe "Variable Declarations" $ do
     it "Should parse a variable declaration without an assignment"
-      $             "varName: Type;"
+      $             "var varName: Type;"
       `shouldParse` [a $ VariableDeclaration (a $ extra $ typN' [] "Type") (l "varName") Nothing]
     it "Should parse a variable declaration with an assignment"
-      $             "varName: Type = 1;"
+      $             "var varName: Type = 1;"
       `shouldParse` [a $ VariableDeclaration ( a $ extra $ typN' [] "Type") (l "varName") (Just $ a $ NumLiteral 1)]
   describe "Assignment"
     $             it "Should parse an assignment"
     $             "varName = 1;"
     `shouldParse` [a $ Assignment ( a $ varN' [] "varName") (a $ NumLiteral 1)]
-  describe "If Statement" $ do
-    it "Should parse a normal if statement"
-      $             "if (true) {return 1;}"
-      `shouldParse` [ a $ IfStatement (a $ BoolLiteral True)
-                                  (a $ CodeBlock [a $ Return $ Just $ a $ NumLiteral 1])
-                                  Nothing
-                    ]
-    it "Should parse an if statement with an else statement"
-      $             "if (true) {return 1;} else {return 2;}"
-      `shouldParse` [ a $ IfStatement (a $ BoolLiteral True) (a $ CodeBlock [a $ Return $ Just $ a $ NumLiteral 1])
-                        $ Just (a $ CodeBlock [a $ Return $ Just $ a $ NumLiteral 2])
-                    ]
-    it "Should parse an if statement that doesn't use code blocks" $ do
-      "if (true) return 1 else return 2;"
-        `shouldParse` [ a $ IfStatement (a $ BoolLiteral True)
-                                    ( a $ Return $ Just $ a $ NumLiteral 1)
-                                    ( Just $ a $ Return $ Just $ a $ NumLiteral 2)
-                      ]
-      "if (true) return 1;"
-        `shouldParse` [a $ IfStatement (a $ BoolLiteral True) (a $ Return $ Just $ a $ NumLiteral 1) Nothing]
-  describe "While statement" $ do
-    it "Should parse a normal while loop"
-      $             "while (true) {return 1;}"
-      `shouldParse` [a $ WhileLoop (a $ BoolLiteral True) (a $ CodeBlock [a $ Return $ Just $ a $ NumLiteral 1])]
-    it "Should parse a while loop that doesn't use code blocks"
-      $             "while (true) return 1;"
-      `shouldParse` [a $ WhileLoop (a $ BoolLiteral True) (a $ Return $ Just $ a $ NumLiteral 1)]
  where
   shouldParse inp ast =
     testParse("module Test where function func(): nil {" ++  inp ++ "}")
       `shouldBe` Right
                    (Module [u "Test"]
                            []
-                           [a $ FunctionDecl (l "func") (a $ simpleType Nil) [] (a $ CodeBlock ast)]
+                           [a $ FunctionDecl (l "func") (a $ simpleType Nil) [] ast]
                    )
 
 expressionSpec = do
@@ -248,9 +198,28 @@ expressionSpec = do
     it "Precedence test 3" $ "(1 + -2) * 3" `shouldParse` BinOp (a MulOp)
       (a $ BinOp (a AddOp) (a $ NumLiteral 1) (a $ UnOp (a NegOp) (a $ NumLiteral 2)))
       (a $ NumLiteral 3)
+  describe "While statement" $ do
+    it "Should parse a normal while loop"
+      $             "while (true) {false;}"
+      `shouldParse` (WhileLoop (a $ BoolLiteral True) [a $ Expr $ a $ BoolLiteral False])
+  describe "If Statement" $ do
+    it "Should parse a normal if statement"
+      $             "if (true) then {false;}"
+      `shouldParse` (IfStatement (a $ BoolLiteral True) $ ThenDo
+                                  [a $ Expr $ a $ BoolLiteral False]
+                                  Nothing)
+                    
+    it "Should parse an if statement with an else statement"
+      $             "if (true) then {\"a\";} else {\"b\";}"
+      `shouldParse` (IfStatement (a $ BoolLiteral True) $ ThenDo
+                        [a $ Expr $ a $ StringLiteral "a"]
+                        (Just [a $ Expr $ a $ StringLiteral "b"]))
+    it "Should parse an if statement with an exitWith statement"
+      $             "if (true) exitWith {\"a\";}"
+      `shouldParse` (IfStatement (a $ BoolLiteral True) $ ThenExitWith [a $ Expr $ a $ StringLiteral "a"])
  where
   shouldParse inp ast =
-    testParse ("module Test where function func(): nil {return " ++  inp ++ ";}")
+    testParse ("module Test where function func(): nil {" ++  inp ++ ";}")
       `shouldBe` Right
                    (Module
                      [u "Test"]
@@ -259,7 +228,7 @@ expressionSpec = do
                                     (l "func")
                                     (a $ simpleType Nil)
                                     []
-                                    (a $ CodeBlock [a $ Return $ Just $ a ast])
+                                    ([a $ Expr $ a ast])
                      ]
                    )
 
