@@ -1,0 +1,7 @@
+module Statement.Loops.IncorrectWhileConditionError where
+
+import Prelude
+
+function test(): nil {
+    while (1) {};
+}

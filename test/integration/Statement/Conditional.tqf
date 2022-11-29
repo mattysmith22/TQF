@@ -1,0 +1,29 @@
+module Statement.Conditional where
+
+import Prelude
+
+function testIfNoElse(): nil {
+    if (1 == 2) then {
+        systemChat("True");
+    };
+    nil;
+}
+
+function testIfElse(): nil {
+    if (1 == 2) then {
+        systemChat("True");
+    } else {
+        systemChat("False");
+    };
+    nil;
+}
+
+function testExitWith(): nil {
+    if (1 == 2) exitWith {nil;};
+    nil;
+}
+
+function testIfAsExpr(): nil {
+    var x: string = if (1 == 2) then {"true";} else {"false";};
+    nil;
+}

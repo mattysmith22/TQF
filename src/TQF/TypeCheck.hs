@@ -17,6 +17,7 @@ import Data.Maybe
 import Control.Monad.Trans.Writer
 import Control.Monad.Trans.Class
 import Data.Functor
+import Debug.Trace
 
 data TypeCheckErr = NotWithin (Annot Type) (Annot Type)
      | NoField VarName (Annot Type)
@@ -39,7 +40,9 @@ typeCheck :: Module Resolved -> Either TypeCheckErr ()
 typeCheck Module{..} = mapM_ typeCheckDeclaration moduleDeclarations
 
 typeCheckDeclaration :: Declaration Resolved -> Either TypeCheckErr ()
-typeCheckDeclaration (Annot _ FunctionDecl{..}) = void $ typeCheckBlock functionContent
+typeCheckDeclaration (Annot _ FunctionDecl{..}) = do
+    blockType <- typeCheckBlock functionContent
+    blockType `shouldBeWithin` functionType
 typeCheckDeclaration (Annot _ VariableDecl{..}) = return ()
 typeCheckDeclaration (Annot _ TypeDecl{..}) = return ()
 typeCheckDeclaration (Annot _ CommandDecl{..}) = return ()
@@ -95,6 +98,15 @@ typeCheckExpr (Annot _ (Cast typ x)) = do
 typeCheckExpr (Annot r (Tuple xs)) = Annot r . tuple . map unAnnot <$> traverse typeCheckExpr xs
 typeCheckExpr (Annot r (IfStatement cond ifT)) = do
     typeOfCond <- typeCheckExpr cond
+    case ifT of
+        ThenDo thn mElse -> do
+            thnTyp <- lift $ typeCheckBlock thn
+            mElseTyp <- lift $ traverse typeCheckBlock mElse
+            return $ maybe thnTyp (thnTyp<>) mElseTyp
+        ThenExitWith exitWith -> do
+            exitWithTyp <- lift $ typeCheckBlock exitWith
+            tell $ Just exitWithTyp
+            return (Annot r $ simpleType Nil) -- If a value is passed back then the exitWith was not hit
     lift $ typeOfCond `shouldBeWithin` Annot (pos cond) (simpleType Bool)
     lift $ fold <$> mapM typeCheckBlock ifT
 typeCheckExpr (Annot r (WhileLoop cond stmt)) = do
@@ -110,7 +122,7 @@ typeCheckBlock = fmap f . runWriterT . traverse typeCheckStmt
         f (typs, mExitWith) =
             let mExitWithTyp = mExitWith
                 retTyp = fromMaybe (Annot NoPlace $ simpleType Nil) $ lastMay typs
-            in maybe retTyp (retTyp<>) mExitWithTyp
+            in maybe retTyp (retTyp<>) $ traceShowId $ mExitWithTyp
 
 typeCheckLIdent :: Annot ResolvedLIdent -> Either TypeCheckErr (Annot Type)
 typeCheckLIdent (Annot r (ResolvedLIdent initial fields)) = Annot r <$> foldrM go (lIdentType initial) fields

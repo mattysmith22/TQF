@@ -1,0 +1,7 @@
+module Statement.Conditional.IncorrectCondTypeError where
+
+import Prelude
+
+function test(): nil {
+    systemChat (if (true) then {"Test";} else {1;});
+}

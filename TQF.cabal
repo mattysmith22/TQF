@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1999466d8856e317ee02845b91ef2493e1f41a507fe3246ecabac685e56d07a1
+-- hash: 617e2328fe2121bbd53442fb4e4176f2e9648c121c61e545b58c2c1dd3de64ae
 
 name:           TQF
 version:        0.1.0.0
@@ -32,6 +32,7 @@ library
       Data.Zip
       SQF.AST
       SQF.Commands
+      TQF
       TQF.AST
       TQF.AST.Annotated
       TQF.CodeGen
@@ -57,6 +58,7 @@ library
     , containers
     , errors
     , extra
+    , filepath
     , mtl
     , safe
     , split
@@ -98,6 +100,7 @@ test-suite TQF-test
   other-modules:
       Data.ZipSpec
       Helpers
+      TQF.IntegrationSpec
       TQF.LexerSpec
       TQF.ParserSpec
       TQF.TypeSpec
@@ -115,8 +118,10 @@ test-suite TQF-test
     , base >=4.7 && <5
     , bimap
     , containers
+    , dir-traverse
     , errors
     , extra
+    , filepath
     , hspec
     , mtl
     , safe

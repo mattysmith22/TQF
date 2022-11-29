@@ -31,6 +31,7 @@ dependencies:
 - extra
 - bimap
 - QuickCheck
+- filepath
 
 build-tools:
 - alex
@@ -52,7 +53,6 @@ executables:
     - pretty-simple
     - optparse-applicative
     - filemanip
-    - filepath
 
 tests:
   TQF-test:
@@ -65,3 +65,5 @@ tests:
     dependencies:
     - TQF
     - hspec
+    - dir-traverse
+    - filepath

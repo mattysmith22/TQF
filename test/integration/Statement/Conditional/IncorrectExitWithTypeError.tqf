@@ -1,0 +1,8 @@
+module Statement.Conditional.IncorrectExitWithTypeError where
+
+import Prelude
+
+function test(): nil {
+    if (true) exitWith {1;};
+    nil;
+}

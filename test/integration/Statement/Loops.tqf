@@ -1,0 +1,21 @@
+module Statement.Loops where
+
+import Prelude
+
+function normalWhileLoop(): nil {
+    while (true) {
+        systemChat("test");
+    };
+}
+
+function normalExitWith(): nil {
+    while (true) {
+        systemChat("test");
+        if (true) exitWith {1;}; 
+    };
+    nil;
+}
+
+function loopAsExpr(): nil|num {
+    while (true) {1;};
+}

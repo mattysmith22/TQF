@@ -42,6 +42,7 @@ packages:
 #
 extra-deps:
 - data-tree-print-0.1.0.2@sha256:d845e99f322df70e0c06d6743bf80336f5918d5423498528beb0593a2afc1703,1620
+- dir-traverse-0.2.3.0@sha256:adcc128f201ff95131b15ffe41365dc99c50dc3fa3a910f021521dc734013bfa,2137
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

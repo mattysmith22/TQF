@@ -1,0 +1,12 @@
+module Statement.Assignment where
+
+-- Variable assignment
+function test1(arg:string): nil {
+    arg = "test";
+}
+
+-- Variable declaration
+function test2(): num {
+    var x: num = 1;
+    1 + x;
+}
