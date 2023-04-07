@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module TQF.ParserSpec
   ( spec
   ) where
@@ -61,49 +62,55 @@ declarationSpec = do
   it "Should parse a function declaration" $ do
     "function functionName(input: nil): string {}"
       `shouldParse` [ a $ FunctionDecl (l "functionName")
-                                   (a $ simpleType String)
-                                   [(a $ simpleType Nil, l "input")]
+                                   (a $ ParsedType $ simpleType String)
+                                   []
+                                   [(a $ ParsedType $ simpleType Nil, l "input")]
                                    []
                     ]
   it "Should parse a function declaration with namespaced types" $ do
     "function functionName(input: NS.Void): NS.String {}"
       `shouldParse` [ a $ FunctionDecl (l "functionName")
-                                   (a $ extra $ UIdent [u "NS"] (u "String"))
-                                   [(a $ extra $ UIdent [u "NS"] (u "Void"), l "input")]
+                                   (a $ ParsedType $ extra (UIdent [u "NS"] (u "String"), []))
+                                   []
+                                   [(a $ ParsedType $ extra (UIdent [u "NS"] (u "Void"), []), l "input")]
                                    []
                     ]
   it "Should parse a function declaration with multiple arguments" $ do
     "function functionName(input: nil, input2: num): string {}"
       `shouldParse` [ a $ FunctionDecl
                         (l "functionName")
-                        (a $ simpleType String)
-                        [(a $ simpleType Nil, l "input"), (a $ simpleType Number, l "input2")]
+                        (a $ ParsedType $ simpleType String)
+                        []
+                        [(a $ ParsedType $ simpleType Nil, l "input"), (a $ ParsedType $ simpleType Number, l "input2")]
                         []
                     ]
   it "Should parse multiple function declarations"
     $             "function functionName(input: nil): string {} function functionName2(input2: string): num {}"
     `shouldParse` [ a $ FunctionDecl (l "functionName")
-                                 (a $ simpleType String)
-                                 [(a $ simpleType Nil, l "input")]
+                                 (a $ ParsedType $ simpleType String)
+                                 []
+                                 [(a $ ParsedType $ simpleType Nil, l "input")]
                                  []
                   , a $ FunctionDecl (l "functionName2")
-                                 (a $ simpleType Number)
-                                 [(a $ simpleType String, l "input2")]
+                                 (a $ ParsedType $ simpleType Number)
+                                 []
+                                 [(a $ ParsedType $ simpleType String, l "input2")]
                                  []
                   ]
   it "Should parse an external function declarations"
     $ "external function functionName(input: nil, input2: num): bool = \"test\""
     `shouldParse` [ a $ ExternalFunctionDecl
         (l "functionName")
-        (a $ simpleType Bool)
-        [(a $ simpleType Nil, l "input"), ( a $ simpleType Number, l "input2")]
+        (a $ ParsedType $ simpleType Bool)
+        []
+        [(a $ ParsedType $ simpleType Nil, l "input"), ( a $ ParsedType $ simpleType Number, l "input2")]
         "test"
         ]
   it "Should parse an external variable declaration"
     $ "external varName: string = \"test\""
     `shouldParse` [ a $ ExternalVariableDecl
         (l "varName")
-        ( a $ simpleType String)
+        ( a $ ParsedType $ simpleType String)
         "test"
         ]
  where
@@ -114,30 +121,30 @@ statementSpec = do
   describe "Variable Declarations" $ do
     it "Should parse a variable declaration without an assignment"
       $             "var varName: Type;"
-      `shouldParse` [a $ VariableDeclaration (a $ extra $ typN' [] "Type") (l "varName") Nothing]
+      `shouldParse` [a $ VariableDeclaration (a $ ParsedType $ extra $ (,[]) $ typN' [] "Type") (l "varName") Nothing]
     it "Should parse a variable declaration with an assignment"
       $             "var varName: Type = 1;"
-      `shouldParse` [a $ VariableDeclaration ( a $ extra $ typN' [] "Type") (l "varName") (Just $ a $ NumLiteral 1)]
+      `shouldParse` [a $ VariableDeclaration ( a $ ParsedType $ extra $ (,[]) $ typN' [] "Type") (l "varName") (Just $ a $ NumLiteral 1)]
   describe "Assignment"
     $             it "Should parse an assignment"
     $             "varName = 1;"
-    `shouldParse` [a $ Assignment ( a $ varN' [] "varName") (a $ NumLiteral 1)]
+    `shouldParse` [a $ Assignment ( a $ ParsedValue (varN' [] "varName") [] []) (a $ NumLiteral 1)]
  where
   shouldParse inp ast =
     testParse("module Test where function func(): nil {" ++  inp ++ "}")
       `shouldBe` Right
                    (Module [u "Test"]
                            []
-                           [a $ FunctionDecl (l "func") (a $ simpleType Nil) [] ast]
+                           [a $ FunctionDecl (l "func") (a $ ParsedType $ simpleType Nil) [] [] ast]
                    )
 
 expressionSpec = do
   describe "Variables" $ do
     it "Should parse a normal variable reading" $ "variable" `shouldParse` Variable
-      ( a $ varN' [] "variable")
+      ( a $ ParsedValue (varN' [] "variable") [] [])
     it "Should parse a variable reading and Namespaces"
       $             "Namespace.variable"
-      `shouldParse` Variable ( a $ varN' ["Namespace"] "variable")
+      `shouldParse` Variable ( a $ ParsedValue (varN' ["Namespace"] "variable") [] [])
   describe "Literals" $ do
     it "Should parse bool literals" $ do
       "true" `shouldParse` BoolLiteral True
@@ -178,7 +185,7 @@ expressionSpec = do
       "1<=2" `shouldParse` BinOp (a LessEqualOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
   describe "FunctionDecl calls" $ do
     it "Should parse a function call" $ "func(1, 2)" `shouldParse` FuncCall
-      ( a $ varN' [] "func")
+      ( a $ ParsedValue (varN' [] "func") [] [])
       [ a $ NumLiteral 1, a $ NumLiteral 2]
   describe "Array construction" $ do
     it "Should parse an empty array" $ "[]" `shouldParse` ArrayExpr []
@@ -186,7 +193,7 @@ expressionSpec = do
     it "Should parse multiple elements of an array" $ "[1, 2]" `shouldParse` ArrayExpr
       [ a $ NumLiteral 1, a $ NumLiteral 2]
   describe "Type cast" $ it "Should parse a type cast" $ "<NS.Type>1" `shouldParse` Cast
-    ( a $ extra $ typN' ["NS"] "Type")
+    ( a $ ParsedType $ extra (typN' ["NS"] "Type", []))
     ( a $ NumLiteral 1)
   describe "Precedence" $ do
     it "Precedence test 1" $ "1 + 2 * 3" `shouldParse` BinOp (a AddOp)
@@ -226,7 +233,8 @@ expressionSpec = do
                      []
                      [a $ FunctionDecl
                                     (l "func")
-                                    (a $ simpleType Nil)
+                                    (a $ ParsedType $ simpleType Nil)
+                                    []
                                     []
                                     ([a $ Expr $ a ast])
                      ]

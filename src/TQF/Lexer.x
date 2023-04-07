@@ -105,8 +105,9 @@ tokens :-
   "|"   { constToken TokenPipe }
   ":"   { constToken TokenColon }
 -- Identifiers
-  (@uident ".")*@lident("."@lident)* 		{ tok (TokenIdentLower . toIdent) }
+  (@uident ".")*@lident 		{ tok (TokenIdentLower . toIdent) }
   (@uident ".")* @uident 		{ tok (TokenIdentUpper . toIdent) }
+  "." @lident               { tok (TokenFieldAccess . toIdent . drop 1)}
 {
 
 data Token
@@ -159,6 +160,7 @@ data Token
   | TokenString String
   | TokenIdentLower LIdent
   | TokenIdentUpper UIdent
+  | TokenFieldAccess VarName
   | TokenEOF
   deriving ( Show, Eq )
 
@@ -211,8 +213,9 @@ unLex (TokenBool False) = "false"
 unLex (TokenNum x) = show x
 unLex (TokenString x) = x
 unLex (TokenSimpleType x) = Type.simpleTypeToString x
-unLex (TokenIdentLower (LIdent modules (ident:|rest))) = unLexModules modules ++ unVarName ident ++ concatMap (("."++) . unVarName) rest
+unLex (TokenIdentLower (LIdent modules ident)) = unLexModules modules ++ unVarName ident
 unLex (TokenIdentUpper (UIdent modules ident)) = unLexModules modules ++ unTypeName ident
+unLex (TokenFieldAccess x) = "." ++ unVarName x
 unLex TokenEOF = "<EOF>"
 
 unLexModules :: ResolveableModule -> String

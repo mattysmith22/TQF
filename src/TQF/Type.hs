@@ -5,6 +5,7 @@ module TQF.Type
     , BaseType
     , SimpleType(..)
     , ConstType
+    , GenericType(..)
 
     , intersect
     , isWithin
@@ -47,24 +48,24 @@ import SQF.Commands
 import Data.String.Pretty
 
 class Within a where
-    isWithin' :: a -> a -> Bool
+    isWithin :: a -> a -> Bool
 
 data Type' a
     = Top -- Any type matches this type
     | Options (Set (BaseType a)) -- A set of finite types which the type can be part of
     deriving (Show, Ord, Eq)
 
-type Type = Type' ()
+type Type = Type' String
 
-isWithin :: Type -> Type -> Bool
-isWithin = isWithin'
+data GenericType = GenericType [String] (Type' String)
+    deriving (Show, Eq)
 
-instance Within Type where
-    _ `isWithin'` Top = True
-    Top `isWithin'` _ = False
-    (Options s) `isWithin'` (Options l) = all (\x -> any (x `isWithin'`) l) s
+instance Ord a => Within (Type' a) where
+    _ `isWithin` Top = True
+    Top `isWithin` _ = False
+    (Options s) `isWithin` (Options l) = all (\x -> any (x `isWithin`) l) s
 
-instance Arbitrary Type where
+instance Arbitrary a => Arbitrary (Type' a) where
     arbitrary = frequency
         [ (1, return Top)
         , (19, arbitrary)
@@ -87,7 +88,7 @@ data BaseType a
     | RecordType (Map String (Type' a))
     | ExtraType a
     deriving (Ord, Eq, Show)
-instance Arbitrary (BaseType ()) where
+instance Arbitrary a => Arbitrary (BaseType a) where
     arbitrary = oneof
         [ SimpleType <$> elements [minBound..maxBound]
         , ConstType <$> arbitrary
@@ -97,62 +98,63 @@ instance Arbitrary (BaseType ()) where
         , ExtraType <$> arbitrary
         ]
 
-instance Within (BaseType ()) where
-    SimpleType s `isWithin'` SimpleType l = s == l
-    SimpleType _ `isWithin'` ConstType _ = False
-    SimpleType _ `isWithin'` ArrayType _ = False
-    SimpleType _ `isWithin'` TupleType _ = False
-    SimpleType _ `isWithin'` CodeType _ _ = False
-    SimpleType _ `isWithin'` RecordType _ = False
+instance Ord a => Within (BaseType a) where
+    SimpleType s `isWithin` SimpleType l = s == l
+    SimpleType _ `isWithin` ConstType _ = False
+    SimpleType _ `isWithin` ArrayType _ = False
+    SimpleType _ `isWithin` TupleType _ = False
+    SimpleType _ `isWithin` CodeType _ _ = False
+    SimpleType _ `isWithin` RecordType _ = False
     
-    ConstType s `isWithin'` SimpleType l = typeOfConst s == l
-    ConstType s `isWithin'` ConstType l = s == l
-    ConstType _ `isWithin'` ArrayType _ = False
-    ConstType _ `isWithin'` TupleType _ = False
-    ConstType _ `isWithin'` CodeType _ _ = False
-    ConstType _ `isWithin'` RecordType _ = False
+    ConstType s `isWithin` SimpleType l = typeOfConst s == l
+    ConstType s `isWithin` ConstType l = s == l
+    ConstType _ `isWithin` ArrayType _ = False
+    ConstType _ `isWithin` TupleType _ = False
+    ConstType _ `isWithin` CodeType _ _ = False
+    ConstType _ `isWithin` RecordType _ = False
 
-    ArrayType _ `isWithin'` SimpleType Array = True
-    ArrayType _ `isWithin'` SimpleType _ = False
-    ArrayType _ `isWithin'` ConstType _ = False
-    ArrayType s `isWithin'` ArrayType l = s `isWithin'` l
-    ArrayType _ `isWithin'` TupleType _ = False
-    ArrayType _ `isWithin'` CodeType _ _ = False
-    ArrayType _ `isWithin'` RecordType _ = False
+    ArrayType _ `isWithin` SimpleType Array = True
+    ArrayType _ `isWithin` SimpleType _ = False
+    ArrayType _ `isWithin` ConstType _ = False
+    ArrayType s `isWithin` ArrayType l = s `isWithin` l
+    ArrayType _ `isWithin` TupleType _ = False
+    ArrayType _ `isWithin` CodeType _ _ = False
+    ArrayType _ `isWithin` RecordType _ = False
     
-    TupleType _ `isWithin'` SimpleType Array = True
-    TupleType _ `isWithin'` SimpleType _ = False
-    TupleType _ `isWithin'` ConstType _ = False
+    TupleType _ `isWithin` SimpleType Array = True
+    TupleType _ `isWithin` SimpleType _ = False
+    TupleType _ `isWithin` ConstType _ = False
         -- A tuple with one element is the same as an array of that type
-    TupleType [s] `isWithin'` ArrayType l = isWithin s l
-    TupleType _ `isWithin'` ArrayType _ = False
-    TupleType s `isWithin'` TupleType l = length s <= length l && and (zipWith isWithin s l)
-    TupleType _ `isWithin'` CodeType _ _ = False
-    TupleType _ `isWithin'` RecordType _ = False
+    TupleType [s] `isWithin` ArrayType l = isWithin s l
+    TupleType _ `isWithin` ArrayType _ = False
+    TupleType s `isWithin` TupleType l = length s <= length l && and (zipWith isWithin s l)
+    TupleType _ `isWithin` CodeType _ _ = False
+    TupleType _ `isWithin` RecordType _ = False
 
-    CodeType _ _ `isWithin'` SimpleType Code = True
-    CodeType _ _ `isWithin'` SimpleType _ = False
-    CodeType _ _ `isWithin'` ConstType _ = False
-    CodeType _ _ `isWithin'` ArrayType _ = False
-    CodeType _ _ `isWithin'` TupleType _ = False
-    CodeType sarg sret `isWithin'` CodeType larg lret
-        = all (uncurry $ flip isWithin) (zipPadded top (simpleType Nil) sarg larg) && sret `isWithin'` lret
-    CodeType _ _ `isWithin'` RecordType _ = False
+    CodeType _ _ `isWithin` SimpleType Code = True
+    CodeType _ _ `isWithin` SimpleType _ = False
+    CodeType _ _ `isWithin` ConstType _ = False
+    CodeType _ _ `isWithin` ArrayType _ = False
+    CodeType _ _ `isWithin` TupleType _ = False
+    CodeType sarg sret `isWithin` CodeType larg lret
+        = all (uncurry $ flip isWithin) (zipPadded top (simpleType Nil) sarg larg) && sret `isWithin` lret
+    CodeType _ _ `isWithin` RecordType _ = False
 
-    RecordType _ `isWithin'` SimpleType HashMap = True
-    RecordType _ `isWithin'` SimpleType _ = False
-    RecordType _ `isWithin'` ConstType _ = False
-    RecordType _ `isWithin'` ArrayType _ = False
-    RecordType _ `isWithin'` TupleType _ = False
-    RecordType _ `isWithin'` CodeType _ _ = False
-    RecordType s `isWithin'` RecordType l =  s `isWithin'` l
+    RecordType _ `isWithin` SimpleType HashMap = True
+    RecordType _ `isWithin` SimpleType _ = False
+    RecordType _ `isWithin` ConstType _ = False
+    RecordType _ `isWithin` ArrayType _ = False
+    RecordType _ `isWithin` TupleType _ = False
+    RecordType _ `isWithin` CodeType _ _ = False
+    RecordType s `isWithin` RecordType l =  s `isWithin` l
 
-    ExtraType () `isWithin'` _ = True
-    _ `isWithin'` ExtraType () = False
+    ExtraType s `isWithin` ExtraType l = s == l
+    ExtraType _ `isWithin` _  = False
+    _ `isWithin` ExtraType _ = False
 
 instance Within a => Within (Map String a) where
-    s `isWithin'` l = Map.null (l `Map.difference` s) -- The subtype must have an implementation of every field
-        && and (Map.intersectionWith isWithin' s l) -- The subtypes implementation of each field must be a subtype itself
+    s `isWithin` l = Map.null (l `Map.difference` s) -- The subtype must have an implementation of every field
+        && and (Map.intersectionWith isWithin s l) -- The subtypes implementation of each field must be a subtype itself
 
 typeOfConst :: ConstType -> SimpleType
 typeOfConst (ConstNumber _) = Number
@@ -227,7 +229,7 @@ intersect x Top = x
 intersect (Options l) (Options r)
     = Options $ Set.map fromJust $ Set.filter isJust $ Set.map (uncurry intersectBase) $ Set.cartesianProduct l r
     where
-    intersectBase :: BaseType () -> BaseType () -> Maybe (BaseType ())
+    intersectBase :: BaseType String -> BaseType String -> Maybe (BaseType String)
     SimpleType l `intersectBase` SimpleType r = if l == r then Just $ SimpleType l else Nothing
     SimpleType l `intersectBase` ConstType r = intersectSimpleConst l r
     SimpleType l `intersectBase` ArrayType r = intersectSimpleArray l r
@@ -275,33 +277,33 @@ intersect (Options l) (Options r)
     ExtraType _ `intersectBase` _ = Nothing
     _ `intersectBase` ExtraType _ = Nothing
 
-    intersectSimpleConst :: SimpleType -> ConstType -> Maybe (BaseType ())
+    intersectSimpleConst :: SimpleType -> ConstType -> Maybe (BaseType String)
     intersectSimpleConst s c = if typeOfConst c == s then Just $ ConstType c else Nothing
 
-    intersectSimpleArray :: SimpleType -> Type -> Maybe (BaseType ())
+    intersectSimpleArray :: SimpleType -> Type -> Maybe (BaseType String)
     intersectSimpleArray Array t = Just $ ArrayType t
     intersectSimpleArray _ _ = Nothing
 
-    intersectSimpleTuple :: SimpleType -> [Type] -> Maybe (BaseType ())
+    intersectSimpleTuple :: SimpleType -> [Type] -> Maybe (BaseType String)
     intersectSimpleTuple Array ts = Just $ TupleType ts
     intersectSimpleTuple _ _ = Nothing
 
-    intersectSimpleCode :: SimpleType -> ([Type], Type) -> Maybe (BaseType ())
+    intersectSimpleCode :: SimpleType -> ([Type], Type) -> Maybe (BaseType String)
     intersectSimpleCode Code (ca, cr) = Just $ CodeType ca cr
     intersectSimpleCode _ _ = Nothing
 
-    intersectSimpleRecord :: SimpleType -> Map String Type -> Maybe (BaseType ())
+    intersectSimpleRecord :: SimpleType -> Map String Type -> Maybe (BaseType String)
     intersectSimpleRecord HashMap x = Just $ RecordType x
     intersectSimpleRecord _ _ = Nothing
 
-    intersectArrayTuple :: Type -> [Type] -> Maybe (BaseType ())
+    intersectArrayTuple :: Type -> [Type] -> Maybe (BaseType String)
     intersectArrayTuple l [r] = fmap (TupleType . pure) $ stripIfBottom $ intersect l r
     intersectArrayTuple _ _ = Nothing
 
-    intersectTupleTuple :: [Type] -> [Type] -> Maybe (BaseType ())
+    intersectTupleTuple :: [Type] -> [Type] -> Maybe (BaseType String)
     intersectTupleTuple l r = Just $ TupleType $ takeWhile (not . isBottom) $ zipWith intersect l r
 
-    intersectCodeCode :: ([Type], Type) -> ([Type], Type) -> Maybe (BaseType ())
+    intersectCodeCode :: ([Type], Type) -> ([Type], Type) -> Maybe (BaseType String)
     intersectCodeCode (la, lr) (ra, rr)
         | isValid = Just $ CodeType args ret
         | otherwise = Nothing
@@ -310,7 +312,7 @@ intersect (Options l) (Options r)
             ret = lr `intersect` rr
             args = uncurry intersect <$> zipPadded top top la ra
 
-    intersectRecordRecord :: Map String Type -> Map String Type -> Maybe (BaseType ())
+    intersectRecordRecord :: Map String Type -> Map String Type -> Maybe (BaseType String)
     intersectRecordRecord l r 
         | any isBottom middle = Nothing
         | otherwise = Just $ RecordType $ lOnly <> rOnly <> middle
@@ -326,7 +328,7 @@ intersect (Options l) (Options r)
     isBottom Top = False
     isBottom (Options os) = Set.null os
 
-resolveType :: Applicative m => (a -> m Type) -> Type' a -> m Type
+resolveType :: (Ord b, Applicative m) => (a -> m (Type' b)) -> Type' a -> m (Type' b)
 resolveType _ Top = pure Top
 resolveType lookupF (Options xs) = mconcat <$> traverse resolveBaseType (Set.toList xs)
     where
@@ -343,7 +345,7 @@ lookupField _ Top = Nothing
 lookupField field (Options xs)
     = fmap mconcat $ traverse lookupFieldBaseType $ Set.toList xs
     where
-        lookupFieldBaseType :: BaseType () -> Maybe Type
+        lookupFieldBaseType :: BaseType String -> Maybe Type
         lookupFieldBaseType (RecordType x) = Map.lookup field x
         lookupFieldBaseType _ = Nothing
 
@@ -352,7 +354,7 @@ validateFuncCall Top argsIn = Left (Top, code argsIn Top)
 validateFuncCall (Options xs) argsIn
     = fmap mconcat $ traverse validateFuncCallBaseType $ Set.toList xs
     where
-        validateFuncCallBaseType :: BaseType () -> Either (Type, Type) Type
+        validateFuncCallBaseType :: BaseType String -> Either (Type, Type) Type
         validateFuncCallBaseType (CodeType args ret) = do
             traverse_ (\x -> unless (uncurry isWithin x) $ Left x) $ zipPadded (simpleType Nil) top argsIn args
             return ret
@@ -363,10 +365,10 @@ validateBinOp validOps Top r = Left (Top,r)
 validateBinOp validOps l Top = Left (l,Top)
 validateBinOp validOps (Options l) (Options r) = fmap mconcat $ mapM (uncurry matches) $ Set.toList $ Set.cartesianProduct l r
     where
-        matches :: BaseType () -> BaseType () -> Either (Type, Type) Type
+        matches :: BaseType String -> BaseType String -> Either (Type, Type) Type
         matches l' r' = foldl1 eitherOf $ fmap (isValidOp l' r') validOps
 
-        isValidOp :: BaseType () -> BaseType () -> (SimpleType, SimpleType, SimpleType) -> Either (Type,Type) Type
+        isValidOp :: BaseType String -> BaseType String -> (SimpleType, SimpleType, SimpleType) -> Either (Type,Type) Type
         isValidOp l' r' (lExp, rExp, ret)= let
             lt = Options $ Set.singleton l'
             rt = Options $ Set.singleton r'
@@ -384,10 +386,10 @@ validateUnOp :: [(SimpleType,SimpleType)] -> Type -> Either Type Type
 validateUnOp validOps Top = Left Top
 validateUnOp validOps (Options x) = fmap mconcat $ mapM matches $ Set.toList x
     where
-        matches :: BaseType () -> Either Type Type
+        matches :: BaseType String -> Either Type Type
         matches x' = foldl1 eitherOf $ fmap (isValidOp x') validOps
 
-        isValidOp :: BaseType () -> (SimpleType, SimpleType) -> Either Type Type
+        isValidOp :: BaseType String -> (SimpleType, SimpleType) -> Either Type Type
         isValidOp x' (xExp, ret) = let
             xt = Options $ Set.singleton x'
             in if xt `isWithin` simpleType xExp then
@@ -416,4 +418,4 @@ instance Pretty Type where
             showBaseTypePretty (TupleType xs) = "(" ++ intercalate "," (fmap prettyPrint xs) ++ ")"
             showBaseTypePretty (CodeType args ret) = "(" ++ intercalate "," (fmap prettyPrint args) ++ ") -> " ++ prettyPrint ret
             showBaseTypePretty (RecordType fields) = "{" ++ intercalate ", " ((\(k,v) -> k ++ ": " ++ prettyPrint v) <$> Map.toList fields) ++ "}"
-            showBaseTypePretty (ExtraType ()) = ""
+            showBaseTypePretty (ExtraType x) = x

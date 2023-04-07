@@ -97,25 +97,25 @@ codeGenExpr env x = f $ unAnnot x
                 toString GreaterEqualOp = ">="
         f NilLit = SQF.NulOp "nil"
 
-getLIdent :: Annot ResolvedLIdent -> SQF SExpr
+getLIdent :: Annot ResolvedValue -> SQF SExpr
 getLIdent = getLIdent' . unAnnot
 
-getLIdent' :: ResolvedLIdent -> SQF SExpr
-getLIdent' (ResolvedLIdent topDecl fields) = foldr addFieldGet topLevelVar fields
+getLIdent' :: ResolvedValue -> SQF SExpr
+getLIdent' (ResolvedValue topDecl _ fields) = foldr addFieldGet topLevelVar fields
     where
         topLevelVar = case lIdentKind topDecl of
             ValueKind ->  SQF.Variable $ lIdentSQFName topDecl
             NularCommandKind -> SQF.CodeBlock [SQF.NulOp $ lIdentSQFName topDecl]
             UnaryCommandKind -> SQF.CodeBlock [SQF.UnOp (lIdentSQFName topDecl) (argNum 0)]
             BinaryCommandKind -> SQF.CodeBlock [SQF.BinOp (lIdentSQFName topDecl) (argNum 0) (argNum 1)]
-        addFieldGet fieldName expr = SQF.BinOp "get" expr (SQF.StringLit $ unVarName fieldName)
+        addFieldGet fieldName expr = SQF.BinOp "get" expr (SQF.StringLit $ unVarName $ unAnnot fieldName)
 
         argNum :: Double -> SQF SExpr
         argNum x = SQF.BinOp "select" (SQF.Variable "_this") (SQF.NumLit x)
 
-setLIdent :: Annot ResolvedLIdent -> SQF SExpr -> SQF SStmt
+setLIdent :: Annot ResolvedValue -> SQF SExpr -> SQF SStmt
 setLIdent lident = setLIdent' (unAnnot lident)
 
-setLIdent' :: ResolvedLIdent -> SQF SExpr -> SQF SStmt
-setLIdent' (ResolvedLIdent x []) expr = SQF.Assign SQF.NoPrivate (lIdentSQFName x) expr
-setLIdent' (ResolvedLIdent x fields) expr = SQF.BinOp "set" (getLIdent' (ResolvedLIdent x (init fields))) $ SQF.Array [SQF.StringLit $ unVarName $ last fields, expr]
+setLIdent' :: ResolvedValue -> SQF SExpr -> SQF SStmt
+setLIdent' (ResolvedValue x _ []) expr = SQF.Assign SQF.NoPrivate (lIdentSQFName x) expr
+setLIdent' (ResolvedValue x args fields) expr = SQF.BinOp "set" (getLIdent' (ResolvedValue x args $ init fields)) $ SQF.Array [SQF.StringLit $ unVarName $ unAnnot $ last fields, expr]

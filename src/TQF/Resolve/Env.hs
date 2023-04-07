@@ -2,7 +2,7 @@
 module TQF.Resolve.Env
     ( Environment(..)
     , CompiledModule(..)
-    , EnvError
+    , EnvError(..)
     , addUIdent
     , lookupUIdent
     , addLIdent
@@ -23,8 +23,8 @@ import Data.String.Pretty
 import Control.Arrow
 
 data Environment = Environment
-    { envUIdents :: Map UIdent (CanCollide Type)
-    , envLIdents :: Map (ResolveableModule, VarName) (CanCollide ModLIdentDecl)
+    { envUIdents :: Map UIdent (CanCollide GenericType)
+    , envLIdents :: Map LIdent (CanCollide ModLIdentDecl)
     }
     deriving (Show, Eq)
 
@@ -48,26 +48,26 @@ unpackLookupError r ident Nothing = Left $ EnvNotFound $ Annot r +++ Annot r $ i
 unpackLookupError r ident (Just Collision) = Left $ EnvCollision $ Annot r +++ Annot r $ ident
 unpackLookupError r ident (Just (NoCollision x)) = return x
 
-lookupUIdent :: Range -> Environment -> UIdent -> Either EnvError Type
+lookupUIdent :: Range -> Environment -> UIdent -> Either EnvError GenericType
 lookupUIdent r Environment{..} uident = unpackLookupError r (Left uident) (Map.lookup uident envUIdents)
 
-addUIdent :: UIdent -> Type -> Environment -> Environment
+addUIdent :: UIdent -> GenericType -> Environment -> Environment
 addUIdent uident decl env = env { envUIdents = Map.insert uident (NoCollision decl) $ envUIdents env }
 
-lookupLIdent :: Range -> Environment -> LIdent -> Either EnvError ResolvedLIdent
-lookupLIdent r Environment{..} x@(LIdent modl (name:|rest)) = flip ResolvedLIdent rest <$> unpackLookupError r (Right x) (Map.lookup (modl,name) envLIdents)
+lookupLIdent :: Range -> Environment -> LIdent -> Either EnvError ModLIdentDecl
+lookupLIdent r Environment{..} x@(LIdent modl name) = unpackLookupError r (Right x) (Map.lookup x envLIdents)
 
-addLIdent :: (ResolveableModule, VarName) -> ModLIdentDecl -> Environment -> Environment
+addLIdent :: LIdent -> ModLIdentDecl -> Environment -> Environment
 addLIdent lident decl env = env { envLIdents = Map.insert lident (NoCollision decl) $ envLIdents env }
 
 importModuleToEnv :: ResolveableModule -> CompiledModule -> Environment -> Environment
 importModuleToEnv prefix CompiledModule{..} Environment{..} = Environment
     { envUIdents = Map.unionWith (const $ const Collision) envUIdents $ Map.mapKeys (UIdent prefix) $ fmap NoCollision modUIdents
-    , envLIdents = Map.unionWith (const $ const Collision) envLIdents $ Map.mapKeys (prefix,) $ fmap NoCollision modLIdents
+    , envLIdents = Map.unionWith (const $ const Collision) envLIdents $ Map.mapKeys (LIdent prefix) $ fmap NoCollision modLIdents
     }
 
 data CompiledModule = CompiledModule
-    { modUIdents :: Map TypeName Type
+    { modUIdents :: Map TypeName GenericType
     , modLIdents :: Map VarName ModLIdentDecl
     }
 

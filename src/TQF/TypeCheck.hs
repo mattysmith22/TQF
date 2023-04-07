@@ -13,17 +13,20 @@ import Control.Arrow
 import Safe (lastMay)
 import Data.Foldable (foldrM, traverse_, fold)
 import Data.String.Pretty
+import TQF.Resolve (resolveGenericType)
 import Data.Maybe
 import Control.Monad.Trans.Writer
+import Data.Either.Extra
 import Control.Monad.Trans.Class
 import Data.Functor
 import Debug.Trace
 
-data TypeCheckErr = NotWithin (Annot Type) (Annot Type)
-     | NoField VarName (Annot Type)
-     | InvalidBinOp (Annot BinaryOperator) Type Type
-     | InvalidUnOp (Annot UnaryOperator) Type
+data TypeCheckErr = NotWithin (Annot (Type' String)) (Annot (Type' String))
+     | NoField (Annot VarName) (Annot (Type' String))
+     | InvalidBinOp (Annot BinaryOperator) (Type' String) (Type' String)
+     | InvalidUnOp (Annot UnaryOperator) (Type' String)
      | ExpectedCode Range
+     | NotFound (Annot UIdent)
      deriving (Show, Eq)
 
 instance Pretty TypeCheckErr where
@@ -32,8 +35,9 @@ instance Pretty TypeCheckErr where
     prettyPrint (InvalidBinOp op l r) = "Invalid arguments to binary operator " ++ prettyPrint op ++ ": " ++ prettyPrint l ++ " and " ++ prettyPrint r
     prettyPrint (InvalidUnOp op x) = "Invalid argument to unary operator " ++ prettyPrint op ++ ": " ++ prettyPrint x
     prettyPrint (ExpectedCode r) = "Expected code " ++ prettyPrint r
+    prettyPrint (NotFound x) = "Not found: " ++ prettyPrint x
 
-shouldBeWithin :: Annot Type -> Annot Type -> Either TypeCheckErr ()
+shouldBeWithin :: Annot (Type' String) -> Annot (Type' String) -> Either TypeCheckErr ()
 shouldBeWithin s@(Annot _ small) l@(Annot _ large) = if small `isWithin` large then return () else Left $ NotWithin s l
 
 typeCheck :: Module Resolved -> Either TypeCheckErr ()
@@ -122,10 +126,13 @@ typeCheckBlock = fmap f . runWriterT . traverse typeCheckStmt
         f (typs, mExitWith) =
             let mExitWithTyp = mExitWith
                 retTyp = fromMaybe (Annot NoPlace $ simpleType Nil) $ lastMay typs
-            in maybe retTyp (retTyp<>) $ traceShowId $ mExitWithTyp
+            in maybe retTyp (retTyp<>) $ traceShowId mExitWithTyp
 
-typeCheckLIdent :: Annot ResolvedLIdent -> Either TypeCheckErr (Annot Type)
-typeCheckLIdent (Annot r (ResolvedLIdent initial fields)) = Annot r <$> foldrM go (lIdentType initial) fields
+typeCheckLIdent :: Annot ResolvedValue -> Either TypeCheckErr (Annot Type)
+typeCheckLIdent (Annot r (ResolvedValue i args fields)) = do
+    initType <- mapLeft NotFound $ resolveGenericType r (lIdentType i) (unAnnot <$> args)
+    Annot r <$> foldrM go initType fields
+    --Annot r <$> foldrM go (lIdentType initial) fields
     where
-        go :: VarName -> Type -> Either TypeCheckErr Type
-        go field x = note (NoField field (Annot r x)) $ lookupField (unVarName field) x
+        go :: Annot VarName -> Type -> Either TypeCheckErr Type
+        go field x = note (NoField field (Annot r x)) $ lookupField (unVarName $ unAnnot field) x

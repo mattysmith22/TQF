@@ -19,22 +19,18 @@ data Parsed
 data Resolved
 
 type family TypeDeclF a where
-  TypeDeclF Parsed = Annot ASTType
-  TypeDeclF Resolved = Annot Type 
+  TypeDeclF Parsed = Annot ParsedType
+  TypeDeclF Resolved = Annot (Type' String)
 
 type family LIdentF a where
-  LIdentF Parsed = Annot LIdent
-  LIdentF Resolved = Annot ResolvedLIdent
+  LIdentF Parsed = Annot ParsedValue
+  LIdentF Resolved = Annot ResolvedValue
 
 type family DeclIdentF a where
   DeclIdentF Parsed = VarName
   DeclIdentF Resolved = ModLIdentDecl
 
-type family CommandF a where
-  CommandF Parsed = String
-  CommandF Resolved = (String, [(CommandArgs Type, Type)])
-
-type ValidASTLevel a = (Show (DeclIdentF a), Eq (DeclIdentF a), Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a), Show (CommandF a), Eq (CommandF a))
+type ValidASTLevel a = (Show (DeclIdentF a), Eq (DeclIdentF a), Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a))
 
 data Module a = Module
   { moduleName         :: ResolveableModule
@@ -57,6 +53,7 @@ type Declaration a = Annot (Declaration_ a)
 data Declaration_ a = FunctionDecl
   { functionName          :: DeclIdentF a
   , functionType          :: TypeDeclF a
+  , functionTypeParams    :: [TypeName]
   , functionArguments     :: [(TypeDeclF a, DeclIdentF a)]
   , functionContent       :: [Statement a]
   } | VariableDecl
@@ -64,15 +61,18 @@ data Declaration_ a = FunctionDecl
   , variableName :: DeclIdentF a
   } | TypeDecl
   { typeName :: TypeName
+  , typeParams :: [TypeName]
   , typeValue :: TypeDeclF a
   } | CommandDecl
   { commandSQF :: String
   , commandName :: DeclIdentF a
+  , commandTypeParams :: [TypeName]
   , commandReturnType :: TypeDeclF a
   , commandArgs :: [(TypeDeclF a, DeclIdentF a)]
   } | ExternalFunctionDecl
   { functionName          :: DeclIdentF a
   , functionType          :: TypeDeclF a
+  , functionTypeParams    :: [TypeName]
   , functionArguments     :: [(TypeDeclF a, DeclIdentF a)]
   , functionSQFName       :: String
   } | ExternalVariableDecl
@@ -150,16 +150,21 @@ data UnaryOperator = NotOp | NegOp
 data BinaryOperator = AndOp | OrOp | AddOp | SubOp | DivOp | MulOp | ModOp | EqOp | NotEqOp | LessOp | GreaterOp | LessEqualOp | GreaterEqualOp
     deriving (Show, Eq)
 
-type ASTType = Type' UIdent
+newtype ParsedType = ParsedType { unParsedType :: Type' (UIdent, [Annot ParsedType])}
+    deriving (Show, Ord, Eq)
+instance Semigroup ParsedType where
+  (<>) :: ParsedType -> ParsedType -> ParsedType
+  l <> r = ParsedType $ unParsedType l <> unParsedType r
 
 data UIdent = UIdent ResolveableModule TypeName
   deriving (Show, Eq, Ord)
-data LIdent = LIdent ResolveableModule (NonEmpty VarName)
+data LIdent = LIdent ResolveableModule VarName
   deriving (Show, Eq, Ord)
 
-data ResolvedLIdent = ResolvedLIdent ModLIdentDecl [VarName]
+data ParsedValue = ParsedValue LIdent [TypeDeclF Parsed] [Annot VarName]
   deriving (Show, Eq)
-
+data ResolvedValue = ResolvedValue ModLIdentDecl [TypeDeclF Resolved] [Annot VarName]
+  deriving (Show, Eq)
 type ResolveableModule = [TypeName]
 
 newtype TypeName = TypeName {unTypeName:: String}
@@ -170,7 +175,7 @@ data IdentKind = ValueKind | NularCommandKind | UnaryCommandKind | BinaryCommand
 data ModLIdentDecl = ModLIdentDecl
   { lIdentModule :: ResolveableModule
   , lIdentName :: VarName
-  , lIdentType :: Type
+  , lIdentType :: GenericType
   , lIdentKind :: IdentKind
   , lIdentSQFName :: String
   }
@@ -195,9 +200,9 @@ instance ToIdent TypeName where
 instance ToIdent LIdent where
   toIdent
     = uncurry LIdent
-    . second NE.fromList
-    . (fmap TypeName *** fmap VarName)
-    . break (isLower . head)
+    . (fmap TypeName *** VarName)
+    . fromJust
+    . unsnoc
     . splitOn "."
 instance ToIdent UIdent where
   toIdent
@@ -214,7 +219,7 @@ instance Pretty TypeName where
 instance Pretty LIdent where
   prettyPrint (LIdent mod x)
     = concatMap ((++".") . prettyPrint) mod
-    ++ intercalate "." (prettyPrint <$> NE.toList x)
+    ++ "." ++ prettyPrint x
 
 instance Pretty UIdent where
   prettyPrint (UIdent mod x)
