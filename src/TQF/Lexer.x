@@ -10,6 +10,7 @@ module TQF.Lexer
   , alexError
   , alexGetInput
   , runAlex
+  , listTokens
   ) where
 
 import Prelude hiding (lex)
@@ -247,4 +248,16 @@ tok :: (String -> Token) -> AlexAction Token
 tok f (_,_,_,inp) n = pure $ f (take n inp)
 constToken :: Token -> AlexAction Token
 constToken x _ _ = pure x
+
+unfoldWhileM :: Monad m => (a -> Bool) -> m a -> m [a]
+unfoldWhileM p m = loop id
+    where
+        loop f = do
+            x <- m
+            if p x
+                then loop (f . (x:))
+                else return (f [])
+
+listTokens :: Alex [Token]
+listTokens = unfoldWhileM (/=TokenEOF) alexMonadScan
 }

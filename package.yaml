@@ -53,6 +53,7 @@ executables:
     - pretty-simple
     - optparse-applicative
     - filemanip
+    - pretty-simple
 
 tests:
   TQF-test:

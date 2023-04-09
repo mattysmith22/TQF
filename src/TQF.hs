@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RecordWildCards #-}
 module TQF where
 
 import TQF.AST
@@ -8,30 +10,56 @@ import           TQF.Resolve                   as Resolve
 import           TQF.TypeCheck                 as TypeCheck
 import           Data.List.Extra (nubOrd, intercalate, splitOn)
 import           Data.String.Pretty
+import           Control.Monad
+import           Control.Monad.Trans.Except
+import           Data.Bifunctor
 import           System.FilePath
 
+data CompileResult = CompileResult
+  { lexedModule :: Either String [Token]
+  , parsedModule :: Either String (Module Parsed)
+  , resolvedModule :: Either String (Module Resolved)
+  , typeCheckedModule :: Either String (Module Resolved)
+  , compiledModule :: Either String CompiledModule
+  }
+
+class ModuleIdentifier a where
+  toModFilePath :: (ResolveableModule -> FilePath) -> a -> FilePath
+  toModIdentifier :: a -> ResolveableModule
+instance ModuleIdentifier FilePath where
+  toModFilePath _ = id
+  toModIdentifier = const [TypeName "<LIVE>"]
+instance ModuleIdentifier ResolveableModule where
+  toModFilePath x = x
+  toModIdentifier = id
+
 compileModule
-    :: (ResolveableModule -> FilePath)
+    :: ModuleIdentifier path
+    => (ResolveableModule -> FilePath)
     -> [ResolveableModule]
-    -> Either ResolveableModule FilePath
-    -> IO (Module Resolved, CompiledModule)
+    -> path
+    -> IO CompileResult
 compileModule pathForModule evalPath moduleName
-  | moduleName' `elem` evalPath = error $ "Cyclic import: " ++ intercalate ":" (prettyPrint <$> takeWhile (/=moduleName') evalPath)
+  | moduleId `elem` evalPath = error $ "Cyclic import: " ++ intercalate ":" (prettyPrint <$> takeWhile (/=moduleId) evalPath)
   | otherwise = do
-    putStrLn $ "Compiling " ++ prettyPrint moduleName'
-    text <- readFile $ either pathForModule id moduleName
-    let parsed = either error id $ Lexer.runAlex text Parser.parse
-    resolveResult <- resolveModule (fmap snd . compileModule pathForModule (moduleName':evalPath) . Left) parsed
-    case resolveResult of
-      (Left err) -> error $ prettyPrint err
-      (Right (resolved,compiledModule)) -> case TypeCheck.typeCheck resolved of
-          (Left err) -> error $ prettyPrint err
-          (Right ()) -> do
-              return (resolved, compiledModule)
+    text <- readFile $ toModFilePath pathForModule moduleName
+    let lexedModule = Lexer.runAlex text Lexer.listTokens
+    let parsedModule = Lexer.runAlex text Parser.parse
+    resolveResult <- runExceptT $ (ExceptT . runResolver) =<< ExceptT (return parsedModule)
+    let resolvedModule = fst <$> resolveResult
+    let compiledModule' = snd <$> resolveResult
+    let isTypeChecked = resolveResult >>= (first prettyPrint . TypeCheck.typeCheck . fst)
+    let typeCheckedModule = isTypeChecked *> resolvedModule
+    let compiledModule = typeCheckedModule *> compiledModule'
+    return CompileResult{..}
   where
-    moduleName' = case moduleName of
-      (Left x) -> x
-      (Right y) -> [TypeName "<LIVE>"]
+    moduleId = toModIdentifier moduleName
+    
+    runResolver ::  Module Parsed -> IO (Either String (Module Resolved, CompiledModule))
+    runResolver
+      = fmap (first prettyPrint =<<)
+      . runExceptT
+      . resolveModule (ExceptT . fmap compiledModule . compileModule pathForModule (moduleId:evalPath))
 
 pathForModule :: ResolveableModule -> FilePath
 pathForModule = (<.> ".tqf") . joinPath . fmap unTypeName

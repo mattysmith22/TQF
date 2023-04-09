@@ -13,7 +13,8 @@ import TQF
 import TQF.AST
 import System.Directory.Extra (doesDirectoryExist, doesFileExist)
 import Control.Exception
-import Control.Monad (filterM)
+import Control.Monad
+import Control.Exception.Extra (errorIO)
 
 spec :: Spec
 spec = parallel $ do
@@ -37,4 +38,4 @@ createTestCase fp
     testName = snd . splitFileName . snd . splitFileName 
 
     compilePath :: FilePath -> IO (Module Resolved)
-    compilePath = fmap fst . compileModule (("test"</>).("integration"</>).pathForModule) [] . Right
+    compilePath = either errorIO return . typeCheckedModule <=< compileModule (("test"</>).("integration"</>).pathForModule) []
