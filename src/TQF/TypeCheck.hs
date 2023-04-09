@@ -19,7 +19,6 @@ import Control.Monad.Trans.Writer
 import Data.Either.Extra
 import Control.Monad.Trans.Class
 import Data.Functor
-import Debug.Trace
 
 data TypeCheckErr = NotWithin (Annot (Type' String)) (Annot (Type' String))
      | NoField (Annot VarName) (Annot (Type' String))
@@ -126,7 +125,7 @@ typeCheckBlock = fmap f . runWriterT . traverse typeCheckStmt
         f (typs, mExitWith) =
             let mExitWithTyp = mExitWith
                 retTyp = fromMaybe (Annot NoPlace $ simpleType Nil) $ lastMay typs
-            in maybe retTyp (retTyp<>) $ traceShowId mExitWithTyp
+            in maybe retTyp (retTyp<>) mExitWithTyp
 
 typeCheckLIdent :: Annot ResolvedValue -> Either TypeCheckErr (Annot Type)
 typeCheckLIdent (Annot r (ResolvedValue i args fields)) = do
