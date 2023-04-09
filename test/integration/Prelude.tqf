@@ -4,4 +4,6 @@ external function func1(): string = "PRELUDE_FUNC1"
 
 command systemChat(x:string):nil = "systemChat"
 
+command str<T>(x:T):string = "str"
+
 external glob1: string = "PRELUDE_GLOB1"

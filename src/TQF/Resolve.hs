@@ -149,7 +149,8 @@ resolveDeclaration :: Environment -> Either Type.GenericType ModLIdentDecl -> De
 resolveDeclaration env idnt = traverse (resolveDeclaration' env idnt)
 
 resolveDeclaration' :: Environment -> Either Type.GenericType ModLIdentDecl -> Declaration_ Parsed -> Either EnvError (Declaration_ Resolved)
-resolveDeclaration' env idnt d@FunctionDecl{..} = do
+resolveDeclaration' env' idnt d@FunctionDecl{..} = do
+    let env = addTypeArgsToEnv functionTypeParams env'
     ret <- resolveType env functionType
     args <- traverse (fmap (fst &&& uncurry createLocalDecl) . firstM (resolveType env)) functionArguments
     stmt <- fst <$> resolveStmts (addArgsToEnv args env) functionContent
@@ -169,14 +170,16 @@ resolveDeclaration' env idnt VariableDecl{..} = do
         { variableName = fromRight (error "Variable returned a type decl") idnt 
         , variableType = typ
         }
-resolveDeclaration' env idnt TypeDecl{..} = do
+resolveDeclaration' env' idnt TypeDecl{..} = do
+    let env = addTypeArgsToEnv typeParams env'
     typ <- resolveType env typeValue
     return TypeDecl
         { typeName = typeName
         , typeParams
         , typeValue = typ
         }
-resolveDeclaration' env idnt CommandDecl{..} = do
+resolveDeclaration' env' idnt CommandDecl{..} = do
+    let env = addTypeArgsToEnv commandTypeParams env'
     ret <- resolveType env commandReturnType
     args <-traverse (fmap (fst &&& uncurry createLocalDecl) . firstM (resolveType env)) commandArgs
     return CommandDecl
@@ -186,7 +189,8 @@ resolveDeclaration' env idnt CommandDecl{..} = do
         , commandReturnType = ret
         , commandArgs = args
         }
-resolveDeclaration' env idnt ExternalFunctionDecl{..} = do
+resolveDeclaration' env' idnt ExternalFunctionDecl{..} = do
+    let env = addTypeArgsToEnv functionTypeParams env'
     ret <- resolveType env functionType
     args <- traverse (fmap (fst &&& uncurry createLocalDecl) . firstM (resolveType env)) functionArguments
     return ExternalFunctionDecl
@@ -203,6 +207,9 @@ resolveDeclaration' env idnt ExternalVariableDecl{..} = do
         , variableType = typ
         , variableSQFName = variableSQFName
         }
+
+addTypeArgsToEnv :: [TypeName] -> Environment -> Environment
+addTypeArgsToEnv typeArgs env = foldr (\x -> addUIdent (UIdent [] x) $ Type.GenericType [] mempty) env typeArgs
 
 createLocalDecl :: Annot (Type.Type' String) -> VarName -> ModLIdentDecl
 createLocalDecl typ var = ModLIdentDecl
@@ -291,6 +298,7 @@ resolveType env typ = let
     in Annot (pos typ) <$> Type.resolveType lookupF (unParsedType $ unAnnot typ)
 
 resolveGenericType :: Range -> Type.GenericType -> [Type.Type' String] -> Either (Annot UIdent) (Type.Type' String)
+resolveGenericType r (Type.GenericType [] val) _ = Right val
 resolveGenericType r (Type.GenericType argNames val) args = let
     -- TODO: Improve hardness of argument handling here - check matching lengths etc.
     env' = Map.fromList $ zip argNames args

@@ -124,6 +124,7 @@ BaseType :: { Annot ParsedType }
     | UIdent TypeArgs { Annot (pos $1) $ ParsedType $ Type.extra (unAnnot $1, $2) }
 
     -- Tuple definition
+    | '[' Type ']' {Annot (pos $1 <> pos $3) $ ParsedType $ Type.array $ unParsedType $ unAnnot $2}
     | '(' ')' { Annot (pos $1 <> pos $2) $ ParsedType $ Type.tuple [] }
     | '\'(' TupleElements ')' { Annot (pos $1 <> pos $3) $ ParsedType $ Type.tuple (fmap (unParsedType . unAnnot) $2) }
     | '(' Type ',' Type TupleElements ')' { Annot (pos $1 <> pos $6) $ ParsedType $ Type.tuple (unParsedType (unAnnot $2) :unParsedType (unAnnot $4) : (fmap (unParsedType . unAnnot) $5) ) }
@@ -250,8 +251,7 @@ FieldAccesses :: {[Annot VarName]}
     | FieldAccess FieldAccesses {$1:$2}
 
 ParsedValue :: {Annot ParsedValue}
-    : LIdent '<' TypeParams '>' FieldAccesses {Annot (pos $1 <> pos $4 <> mconcat (fmap pos $5)) $ ParsedValue (unAnnot $1) $3 $5}
-    | LIdent FieldAccesses {Annot (pos $1 <> mconcat (fmap pos $2)) $ ParsedValue (unAnnot $1) [] $2}
+    : LIdent TypeParams FieldAccesses {Annot (pos $1 <> mconcat (fmap pos $2) <> mconcat (fmap pos $3)) $ ParsedValue (unAnnot $1) $2 $3}
 
 ModuleIdent :: { Annot ResolveableModule }
     : UIdent {fmap typeToModuleIdent $1}

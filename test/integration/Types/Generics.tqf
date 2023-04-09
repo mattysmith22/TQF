@@ -1,0 +1,18 @@
+module Types.Generics where
+
+import Prelude
+
+command count<T>(x:[T]):num = "count"
+
+type ArrayOfSomething<T> = {
+    theArray: [T]
+}
+
+function countOfSomething<T>(x:ArrayOfSomething<T>): num {
+    count<T>(x.theArray);
+}
+
+function main(): nil {
+    var array1: [num] = [1,2,3];
+    systemChat(str<num>(count<num>(array1)));
+}
