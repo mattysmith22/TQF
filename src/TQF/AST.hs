@@ -219,7 +219,7 @@ instance Pretty TypeName where
 instance Pretty LIdent where
   prettyPrint (LIdent mod x)
     = concatMap ((++".") . prettyPrint) mod
-    ++ "." ++ prettyPrint x
+    ++ prettyPrint x
 
 instance Pretty UIdent where
   prettyPrint (UIdent mod x)
