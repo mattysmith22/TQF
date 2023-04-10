@@ -2,19 +2,19 @@ module TQF.IntegrationSpec
   ( spec
   ) where
 
-import Test.Hspec
-import System.Directory.Recursive
-import System.FilePath
-import Data.List (isSuffixOf, isInfixOf)
-import qualified TQF.CodeGen                   as CodeGen
-import qualified SQF.AST                       as SQF
-import           TQF.CodeGen.Optimiser         as Optimiser
-import TQF
-import TQF.AST
-import System.Directory.Extra (doesDirectoryExist, doesFileExist)
-import Control.Exception
-import Control.Monad
-import Control.Exception.Extra (errorIO)
+import           Control.Exception
+import           Control.Exception.Extra    (errorIO)
+import           Control.Monad
+import           Data.List                  (isInfixOf, isSuffixOf)
+import qualified SQF.AST                    as SQF
+import           System.Directory.Extra     (doesDirectoryExist, doesFileExist)
+import           System.Directory.Recursive
+import           System.FilePath
+import           TQF
+import           TQF.AST
+import qualified TQF.CodeGen                as CodeGen
+import           TQF.CodeGen.Optimiser      as Optimiser
+import           Test.Hspec
 
 spec :: Spec
 spec = parallel $ do
@@ -35,7 +35,7 @@ createTestCase fp
     gen `shouldBe` expected
   where
     testName :: FilePath -> String
-    testName = snd . splitFileName . snd . splitFileName 
+    testName = snd . splitFileName . snd . splitFileName
 
     compilePath :: FilePath -> IO (Module Resolved)
     compilePath = either errorIO return . typeCheckedModule <=< compileModule (("test"</>).("integration"</>).pathForModule) []

@@ -208,22 +208,22 @@ expressionSpec = do
   describe "While statement" $ do
     it "Should parse a normal while loop"
       $             "while (true) {false;}"
-      `shouldParse` (WhileLoop (a $ BoolLiteral True) [a $ Expr $ a $ BoolLiteral False])
+      `shouldParse` WhileLoop (a $ BoolLiteral True) [a $ Expr $ a $ BoolLiteral False]
   describe "If Statement" $ do
     it "Should parse a normal if statement"
       $             "if (true) then {false;}"
-      `shouldParse` (IfStatement (a $ BoolLiteral True) $ ThenDo
+      `shouldParse` IfStatement (a $ BoolLiteral True) (ThenDo
                                   [a $ Expr $ a $ BoolLiteral False]
                                   Nothing)
-                    
+
     it "Should parse an if statement with an else statement"
       $             "if (true) then {\"a\";} else {\"b\";}"
-      `shouldParse` (IfStatement (a $ BoolLiteral True) $ ThenDo
+      `shouldParse` IfStatement (a $ BoolLiteral True) (ThenDo
                         [a $ Expr $ a $ StringLiteral "a"]
                         (Just [a $ Expr $ a $ StringLiteral "b"]))
     it "Should parse an if statement with an exitWith statement"
       $             "if (true) exitWith {\"a\";}"
-      `shouldParse` (IfStatement (a $ BoolLiteral True) $ ThenExitWith [a $ Expr $ a $ StringLiteral "a"])
+      `shouldParse` IfStatement (a $ BoolLiteral True) (ThenExitWith [a $ Expr $ a $ StringLiteral "a"])
  where
   shouldParse inp ast =
     testParse ("module Test where function func(): nil {" ++  inp ++ ";}")
@@ -236,7 +236,7 @@ expressionSpec = do
                                     (a $ ParsedType $ simpleType Nil)
                                     []
                                     []
-                                    ([a $ Expr $ a ast])
+                                    [a $ Expr $ a ast]
                      ]
                    )
 

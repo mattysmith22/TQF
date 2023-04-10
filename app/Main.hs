@@ -3,32 +3,30 @@ module Main where
 
 import           Text.Pretty.Simple
 
-import           System.Environment             ( getArgs )
-import           System.Exit                    ( ExitCode(ExitFailure)
-                                                , exitWith
-                                                )
-import           TQF.AST
-import           TQF
-import           TQF.CodeGen.Optimiser         as Optimiser
-import qualified TQF.CodeGen                   as CodeGen
-import           TQF.Resolve.Env (CompiledModule)
-import qualified SQF.AST                       as SQF
-import           Data.List.Extra (nubOrd, intercalate, splitOn)
+import           Control.Monad          (forM, forM_, when)
+import           Data.Char              (isUpper)
+import           Data.List.Extra        (intercalate, nubOrd, splitOn)
+import           Data.Maybe             (fromJust, fromMaybe)
 import           Options.Applicative
-import           Data.Char (isUpper)
-import qualified System.FilePath.Find as Find
-import           Control.Monad(forM_, forM, when)
-import           Data.Maybe (fromMaybe, fromJust)
-import           System.FilePath (takeExtension, takeDirectory, joinPath, (<.>))
-import System.Directory.Extra (createDirectoryIfMissing)
-import Safe (headMay)
+import qualified SQF.AST                as SQF
+import           Safe                   (headMay)
+import           System.Directory.Extra (createDirectoryIfMissing)
+import           System.Environment     (getArgs)
+import           System.Exit            (ExitCode (ExitFailure), exitWith)
+import           System.FilePath        (joinPath, takeDirectory, takeExtension, (<.>))
+import qualified System.FilePath.Find   as Find
+import           TQF
+import           TQF.AST
+import qualified TQF.CodeGen            as CodeGen
+import           TQF.CodeGen.Optimiser  as Optimiser
+import           TQF.Resolve.Env        (CompiledModule)
 
 data CompileArgs = CompileArgs
   { modulesToCompile :: [String]
-  , printParsed :: Bool
-  , printResolved :: Bool
-  , printLexed :: Bool
-  , outDir :: FilePath
+  , printParsed      :: Bool
+  , printResolved    :: Bool
+  , printLexed       :: Bool
+  , outDir           :: FilePath
   }
 
 argParser :: ParserInfo CompileArgs
@@ -51,12 +49,12 @@ main = do
   CompileArgs{..} <- execParser argParser
   forM_ modulesToCompile $ \moduleName -> do
       CompileResult{..} <- compileModule pathForModule [] $ fromMaybe (error $ moduleName ++ " is not a valid module name") (splitModule moduleName)
-      
+
       when (printLexed || printParsed || printResolved) $ putStrLn $ "Intermediate for " ++ moduleName
       when printLexed $ putStr "Lexed:" >> forM_ (either error id lexedModule) print
       when printParsed $ putStrLn "Parsed:" >> pPrint (either error id parsedModule)
       when printResolved $ putStrLn "Resolved" >> pPrint (either error id resolvedModule)
-      
+
       putStrLn $ SQF.prettyPrint $ optimiseCommandCall <$> CodeGen.codeGen (either error id typeCheckedModule)
 
 splitModule :: String -> Maybe ResolveableModule

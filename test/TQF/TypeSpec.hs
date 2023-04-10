@@ -2,12 +2,12 @@
 module TQF.TypeSpec
     ( spec
     ) where
-import Test.Hspec
-import Test.Hspec.QuickCheck
-import Test.QuickCheck
-import TQF.Type
-import qualified Data.Map as Map
-import Data.Map (Map)
+import           Data.Map              (Map)
+import qualified Data.Map              as Map
+import           TQF.Type
+import           Test.Hspec
+import           Test.Hspec.QuickCheck
+import           Test.QuickCheck
 
 implies :: Bool -> Bool -> Bool
 implies l r = not l || r
@@ -61,7 +61,7 @@ spec = parallel $ modifyMaxSuccess (const 10000) $ do
         describe "Tuple types" $ do
             it "Should count two tuple types that are equal to each other as being within each other" $
                 tuple [constNumber 1, constString "a"] `isWithin'` tuple [constNumber 1, constString "a"]
-            it "Should count a tuple type with smaller element types as being within another" $ 
+            it "Should count a tuple type with smaller element types as being within another" $
                 tuple [constNumber 1, constString "a"] `isWithin'` tuple [constNumber 1, simpleType String]
             it "Should count a tuple type with fewer elements types as being within another" $
                 tuple [simpleType String, simpleType Number] `isWithin'` tuple [simpleType String, simpleType Number, simpleType Array]

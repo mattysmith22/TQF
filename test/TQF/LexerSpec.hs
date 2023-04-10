@@ -2,11 +2,11 @@ module TQF.LexerSpec
   ( spec
   ) where
 
+import           Data.List.NonEmpty (NonEmpty ((:|)))
 import           TQF.AST
 import           TQF.AST.Annotated
 import           TQF.Lexer
 import           Test.Hspec
-import           Data.List.NonEmpty (NonEmpty((:|)))
 
 
 

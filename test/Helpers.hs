@@ -1,8 +1,8 @@
 module Helpers where
 
-import qualified Data.Map                      as Map
+import           Data.List.NonEmpty (NonEmpty ((:|)))
+import qualified Data.Map           as Map
 import           TQF.AST
-import           Data.List.NonEmpty (NonEmpty((:|)))
 
 typN :: String -> UIdent
 typN = UIdent [] . TypeName

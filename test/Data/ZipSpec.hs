@@ -1,7 +1,7 @@
 module Data.ZipSpec (spec) where
 
-import Data.Zip
-import Test.Hspec
+import           Data.Zip
+import           Test.Hspec
 
 spec :: Spec
 spec = do
