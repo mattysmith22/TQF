@@ -1,10 +1,10 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs     #-}
 module TQF.CodeGen.Optimiser where
 
-import SQF.AST
-import Safe (atMay)
-import Data.Maybe (fromMaybe)
+import           Data.Maybe (fromMaybe)
+import           SQF.AST
+import           Safe       (atMay)
 
 nil :: SQF SExpr
 nil = NulOp "nil"

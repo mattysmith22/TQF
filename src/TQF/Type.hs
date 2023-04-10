@@ -1,4 +1,6 @@
-{-# LANGUAGE TypeFamilies, FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies      #-}
 module TQF.Type
     ( Type
     , Type'
@@ -11,7 +13,7 @@ module TQF.Type
     , isWithin
 
     , simpleTypeToString
-    
+
     , bottom
     , top
     , simpleType
@@ -23,7 +25,7 @@ module TQF.Type
     , code
     , record
     , extra
-    
+
     , resolveType
     , lookupField
     , validateFuncCall
@@ -31,21 +33,21 @@ module TQF.Type
     , validateUnOp
     ) where
 
-import Data.Functor.Identity ()
-import Data.Set (Set)
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Zip
-import qualified Data.Set as Set
-import Test.QuickCheck
-import Control.Arrow
-import Data.Foldable (traverse_, asum)
-import Data.List (intercalate)
-import Data.Maybe (fromJust, isJust, mapMaybe)
-import Control.Monad (unless)
-import Data.Either (isRight, fromLeft, fromRight)
-import SQF.Commands
-import Data.String.Pretty
+import           Control.Arrow
+import           Control.Monad         (unless)
+import           Data.Either           (fromLeft, fromRight, isRight)
+import           Data.Foldable         (asum, traverse_)
+import           Data.Functor.Identity ()
+import           Data.List             (intercalate)
+import           Data.Map              (Map)
+import qualified Data.Map              as Map
+import           Data.Maybe            (fromJust, isJust, mapMaybe)
+import           Data.Set              (Set)
+import qualified Data.Set              as Set
+import           Data.String.Pretty
+import           Data.Zip
+import           SQF.Commands
+import           Test.QuickCheck
 
 class Within a where
     isWithin :: a -> a -> Bool
@@ -61,8 +63,8 @@ data GenericType = GenericType [String] (Type' String)
     deriving (Show, Eq)
 
 instance Ord a => Within (Type' a) where
-    _ `isWithin` Top = True
-    Top `isWithin` _ = False
+    _ `isWithin` Top                   = True
+    Top `isWithin` _                   = False
     (Options s) `isWithin` (Options l) = all (\x -> any (x `isWithin`) l) s
 
 instance Arbitrary a => Arbitrary (Type' a) where
@@ -74,7 +76,7 @@ instance Arbitrary a => Arbitrary (Type' a) where
 data BaseType a
     -- | Arma simple types - Number, String, Object as well as untyped variants of
     -- other structures (HashMap, Array, Code)
-    = SimpleType SimpleType 
+    = SimpleType SimpleType
     -- | Constant value
     | ConstType ConstType
     -- | Typed array (element of subtype is known)
@@ -105,7 +107,7 @@ instance Ord a => Within (BaseType a) where
     SimpleType _ `isWithin` TupleType _ = False
     SimpleType _ `isWithin` CodeType _ _ = False
     SimpleType _ `isWithin` RecordType _ = False
-    
+
     ConstType s `isWithin` SimpleType l = typeOfConst s == l
     ConstType s `isWithin` ConstType l = s == l
     ConstType _ `isWithin` ArrayType _ = False
@@ -120,7 +122,7 @@ instance Ord a => Within (BaseType a) where
     ArrayType _ `isWithin` TupleType _ = False
     ArrayType _ `isWithin` CodeType _ _ = False
     ArrayType _ `isWithin` RecordType _ = False
-    
+
     TupleType _ `isWithin` SimpleType Array = True
     TupleType _ `isWithin` SimpleType _ = False
     TupleType _ `isWithin` ConstType _ = False
@@ -159,7 +161,7 @@ instance Within a => Within (Map String a) where
 typeOfConst :: ConstType -> SimpleType
 typeOfConst (ConstNumber _) = Number
 typeOfConst (ConstString _) = String
-typeOfConst (ConstBool _) = Bool
+typeOfConst (ConstBool _)   = Bool
 
 data ConstType = ConstNumber Double | ConstString String | ConstBool Bool
     deriving (Ord, Eq, Show)
@@ -174,17 +176,17 @@ data SimpleType = Number | String | Bool | Array | Code | Nil | HashMap
     deriving (Ord, Eq, Show, Bounded, Enum)
 
 simpleTypeToString :: SimpleType -> String
-simpleTypeToString String = "string"
-simpleTypeToString Number = "num"
-simpleTypeToString Array = "array"
+simpleTypeToString String  = "string"
+simpleTypeToString Number  = "num"
+simpleTypeToString Array   = "array"
 simpleTypeToString HashMap = "hashmap"
-simpleTypeToString Bool = "bool"
-simpleTypeToString Code = "code"
-simpleTypeToString Nil = "nil"
+simpleTypeToString Bool    = "bool"
+simpleTypeToString Code    = "code"
+simpleTypeToString Nil     = "nil"
 
 instance Ord a => Semigroup (Type' a) where
-    Top <> _ = Top
-    _ <> Top = Top
+    Top <> _                   = Top
+    _ <> Top                   = Top
     (Options l) <> (Options r) = Options (l <> r)
 
 instance Ord a => Monoid (Type' a) where
@@ -282,23 +284,23 @@ intersect (Options l) (Options r)
 
     intersectSimpleArray :: SimpleType -> Type -> Maybe (BaseType String)
     intersectSimpleArray Array t = Just $ ArrayType t
-    intersectSimpleArray _ _ = Nothing
+    intersectSimpleArray _ _     = Nothing
 
     intersectSimpleTuple :: SimpleType -> [Type] -> Maybe (BaseType String)
     intersectSimpleTuple Array ts = Just $ TupleType ts
-    intersectSimpleTuple _ _ = Nothing
+    intersectSimpleTuple _ _      = Nothing
 
     intersectSimpleCode :: SimpleType -> ([Type], Type) -> Maybe (BaseType String)
     intersectSimpleCode Code (ca, cr) = Just $ CodeType ca cr
-    intersectSimpleCode _ _ = Nothing
+    intersectSimpleCode _ _           = Nothing
 
     intersectSimpleRecord :: SimpleType -> Map String Type -> Maybe (BaseType String)
     intersectSimpleRecord HashMap x = Just $ RecordType x
-    intersectSimpleRecord _ _ = Nothing
+    intersectSimpleRecord _ _       = Nothing
 
     intersectArrayTuple :: Type -> [Type] -> Maybe (BaseType String)
     intersectArrayTuple l [r] = fmap (TupleType . pure) $ stripIfBottom $ intersect l r
-    intersectArrayTuple _ _ = Nothing
+    intersectArrayTuple _ _   = Nothing
 
     intersectTupleTuple :: [Type] -> [Type] -> Maybe (BaseType String)
     intersectTupleTuple l r = Just $ TupleType $ takeWhile (not . isBottom) $ zipWith intersect l r
@@ -313,7 +315,7 @@ intersect (Options l) (Options r)
             args = uncurry intersect <$> zipPadded top top la ra
 
     intersectRecordRecord :: Map String Type -> Map String Type -> Maybe (BaseType String)
-    intersectRecordRecord l r 
+    intersectRecordRecord l r
         | any isBottom middle = Nothing
         | otherwise = Just $ RecordType $ lOnly <> rOnly <> middle
         where
@@ -325,7 +327,7 @@ intersect (Options l) (Options r)
     stripIfBottom x = if isBottom x then Nothing else Just x
 
     isBottom :: Type -> Bool
-    isBottom Top = False
+    isBottom Top          = False
     isBottom (Options os) = Set.null os
 
 resolveType :: (Ord b, Applicative m) => (a -> m (Type' b)) -> Type' a -> m (Type' b)
@@ -347,7 +349,7 @@ lookupField field (Options xs)
     where
         lookupFieldBaseType :: BaseType String -> Maybe Type
         lookupFieldBaseType (RecordType x) = Map.lookup field x
-        lookupFieldBaseType _ = Nothing
+        lookupFieldBaseType _              = Nothing
 
 validateFuncCall :: Type -> [Type] -> Either (Type, Type) Type
 validateFuncCall Top argsIn = Left (Top, code argsIn Top)
@@ -379,8 +381,8 @@ validateBinOp validOps (Options l) (Options r) = fmap mconcat $ mapM (uncurry ma
 
         eitherOf :: Either a b -> Either a b -> Either a b
         eitherOf (Left _) (Right x) = Right x
-        eitherOf (Left x) (Left _) = Left x
-        eitherOf (Right x) _ = Right x
+        eitherOf (Left x) (Left _)  = Left x
+        eitherOf (Right x) _        = Right x
 
 validateUnOp :: [(SimpleType,SimpleType)] -> Type -> Either Type Type
 validateUnOp validOps Top = Left Top
@@ -399,8 +401,8 @@ validateUnOp validOps (Options x) = fmap mconcat $ mapM matches $ Set.toList x
 
         eitherOf :: Either a b -> Either a b -> Either a b
         eitherOf (Left _) (Right x) = Right x
-        eitherOf (Left x) (Left _) = Left x
-        eitherOf (Right x) _ = Right x
+        eitherOf (Left x) (Left _)  = Left x
+        eitherOf (Right x) _        = Right x
 
 instance Pretty Type where
     prettyPrint Top = "top"

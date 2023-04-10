@@ -1,13 +1,13 @@
 {-# LANGUAGE InstanceSigs #-}
 module TQF.AST.Annotated where
 
-import Test.QuickCheck (Arbitrary(..))
-import Data.Maybe (fromMaybe)
-import Data.String.Pretty
+import           Data.Maybe         (fromMaybe)
+import           Data.String.Pretty
+import           Test.QuickCheck    (Arbitrary (..))
 
 data Pos = Pos
     { lines :: Int
-    , cols :: Int
+    , cols  :: Int
     }
     deriving (Show, Eq, Ord)
 
@@ -17,14 +17,14 @@ data Range = Range Pos Pos
 
 instance Semigroup Range where
     (Range l1 l2) <> (Range r1 r2) = Range (l1 `min` r1) (l2 `max` r2)
-    l@(Range _ _) <> NoPlace = l
-    NoPlace <> r@(Range _ _) = r
-    NoPlace <> NoPlace = NoPlace
+    l@(Range _ _) <> NoPlace       = l
+    NoPlace <> r@(Range _ _)       = r
+    NoPlace <> NoPlace             = NoPlace
 instance Monoid Range where
     mempty = NoPlace
 
 data Annot a = Annot
-    { pos :: Range
+    { pos     :: Range
     , unAnnot :: a
     }
 
@@ -68,7 +68,7 @@ instance Pretty a => Pretty (Annot a) where
 
 dispRange :: Range -> Maybe String
 dispRange (Range (Pos sl sc) (Pos el ec)) = Just $ show sl ++ ":" ++ show sc ++ "-" ++ show el ++ ":" ++ show ec
-dispRange NoPlace = Nothing
+dispRange NoPlace                         = Nothing
 
 instance Pretty Range where
     prettyPrint = fromMaybe "unknown" . dispRange

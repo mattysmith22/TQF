@@ -1,27 +1,29 @@
-{-# LANGUAGE RecordWildCards, TupleSections, NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections   #-}
 module TQF.Resolve
     ( resolveModule
     , resolveGenericType
     ) where
 
-import TQF.AST
-import TQF.AST.Annotated
-import TQF.Resolve.Env
-import Control.Monad (foldM, liftM)
-import Control.Arrow
-import TQF.Type (Type)
-import qualified TQF.Type as Type
-import qualified Data.Map as Map
-import Data.List (intercalate)
-import Control.Error
-import Data.Either.Extra (mapLeft, fromRight)
-import Data.Tuple.Extra (firstM)
-import Control.Monad.State
-import Data.List.NonEmpty ( NonEmpty((:|)) )
-import Control.Monad.Trans.Writer.Lazy
+import           Control.Arrow
+import           Control.Error
+import           Control.Monad                   (foldM, liftM)
+import           Control.Monad.State
+import           Control.Monad.Trans.Writer.Lazy
+import           Data.Either.Extra               (fromRight, mapLeft)
+import           Data.List                       (intercalate)
+import           Data.List.NonEmpty              (NonEmpty ((:|)))
+import qualified Data.Map                        as Map
+import           Data.Tuple.Extra                (firstM)
+import           TQF.AST
+import           TQF.AST.Annotated
+import           TQF.Resolve.Env
+import           TQF.Type                        (Type)
+import qualified TQF.Type                        as Type
 
 applyWhen :: Bool -> (a -> a) -> a -> a
-applyWhen True f = f
+applyWhen True f   = f
 applyWhen False id = id
 
 resolveModule
@@ -35,9 +37,9 @@ resolveModule loadModule m@Module{..} = flip resolveModule' m <$> foldM handleIm
             compiledModule <- loadModule importName
             let qualifiedName = fromMaybe importName importAs
             return $ importModuleToEnv qualifiedName compiledModule
-                $ applyWhen (not importQualified) (importModuleToEnv [] compiledModule) env   
+                $ applyWhen (not importQualified) (importModuleToEnv [] compiledModule) env
 
-resolveModule' :: Environment -> Module Parsed -> Either EnvError (Module Resolved, CompiledModule) 
+resolveModule' :: Environment -> Module Parsed -> Either EnvError (Module Resolved, CompiledModule)
 resolveModule' env Module{..} = do
     (decls, env') <- foldM (\(ds,e) d -> first (:ds) <$> addTopLevelDeclToEnv moduleName e d) ([],env) moduleDeclarations
     decls' <- traverse (uncurry $ resolveDeclaration env') decls
@@ -65,7 +67,7 @@ toCompiledModule ExternalVariableDecl{..}
 
 addTopLevelDeclToEnv
     :: ResolveableModule
-    -> Environment 
+    -> Environment
     -> Declaration Parsed
     -> Either EnvError
         ((Either Type.GenericType ModLIdentDecl, Declaration Parsed),Environment)
@@ -121,9 +123,9 @@ identForDecl mod env CommandDecl{..} = do
             }
     where
         toKind :: [a] -> IdentKind
-        toKind [] = NularCommandKind
+        toKind []  = NularCommandKind
         toKind [_] = UnaryCommandKind
-        toKind _ = BinaryCommandKind
+        toKind _   = BinaryCommandKind
 identForDecl mod env ExternalFunctionDecl{..} = do
     let env' = addTypeParams functionTypeParams env
     ret <- resolveType env' functionType
@@ -166,8 +168,8 @@ resolveDeclaration' env' idnt d@FunctionDecl{..} = do
         addArgsToEnv args env = foldr (\(t, n) -> addLIdent (LIdent [] $ lIdentName n) n) env args
 resolveDeclaration' env idnt VariableDecl{..} = do
     typ <- resolveType env variableType
-    return VariableDecl 
-        { variableName = fromRight (error "Variable returned a type decl") idnt 
+    return VariableDecl
+        { variableName = fromRight (error "Variable returned a type decl") idnt
         , variableType = typ
         }
 resolveDeclaration' env' idnt TypeDecl{..} = do

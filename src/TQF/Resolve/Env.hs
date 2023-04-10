@@ -1,4 +1,5 @@
-{-# LANGUAGE RecordWildCards, TupleSections #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections   #-}
 module TQF.Resolve.Env
     ( Environment(..)
     , CompiledModule(..)
@@ -11,16 +12,16 @@ module TQF.Resolve.Env
     , importModuleToEnv
     ) where
 
-import Data.Map (Map)
-import TQF.AST
-import TQF.AST.Annotated
-import qualified Data.Map as Map
-import Data.List.NonEmpty
-import TQF.Type
-import Data.Maybe (fromMaybe)
-import SQF.Commands
-import Data.String.Pretty
-import Control.Arrow
+import           Control.Arrow
+import           Data.List.NonEmpty
+import           Data.Map           (Map)
+import qualified Data.Map           as Map
+import           Data.Maybe         (fromMaybe)
+import           Data.String.Pretty
+import           SQF.Commands
+import           TQF.AST
+import           TQF.AST.Annotated
+import           TQF.Type
 
 data Environment = Environment
     { envUIdents :: Map UIdent (CanCollide GenericType)
@@ -40,12 +41,12 @@ data EnvError = EnvNotFound (Either (Annot UIdent) (Annot LIdent))
     deriving (Show, Eq)
 
 instance Pretty EnvError where
-    prettyPrint (EnvNotFound x) = "Not found: " ++ either prettyPrint prettyPrint x
+    prettyPrint (EnvNotFound x)  = "Not found: " ++ either prettyPrint prettyPrint x
     prettyPrint (EnvCollision x) = "Collision: " ++ either prettyPrint prettyPrint x
 
 unpackLookupError :: Range -> Either UIdent LIdent -> Maybe (CanCollide a) -> Either EnvError a
-unpackLookupError r ident Nothing = Left $ EnvNotFound $ Annot r +++ Annot r $ ident
-unpackLookupError r ident (Just Collision) = Left $ EnvCollision $ Annot r +++ Annot r $ ident
+unpackLookupError r ident Nothing                = Left $ EnvNotFound $ Annot r +++ Annot r $ ident
+unpackLookupError r ident (Just Collision)       = Left $ EnvCollision $ Annot r +++ Annot r $ ident
 unpackLookupError r ident (Just (NoCollision x)) = return x
 
 lookupUIdent :: Range -> Environment -> UIdent -> Either EnvError GenericType

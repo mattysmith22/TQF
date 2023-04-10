@@ -1,13 +1,13 @@
+{-# LANGUAGE DataKinds       #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE DataKinds #-}
 module TQF.CodeGen where
 
-import TQF.AST
-import TQF.AST.Annotated
-import Safe
-import qualified SQF.AST as SQF
-import SQF.AST (SQF, SQFType(..))
-import           Data.List (intercalate)
+import           Data.List         (intercalate)
+import           SQF.AST           (SQF, SQFType (..))
+import qualified SQF.AST           as SQF
+import           Safe
+import           TQF.AST
+import           TQF.AST.Annotated
 
 codeGen :: Module Resolved -> [SQF SStmt]
 codeGen Module{..} = concatMap (codeGenDecl moduleName) moduleDeclarations
@@ -32,13 +32,13 @@ codeGenDecl' _ _ = []
 
 ensureBlock :: SQF SStmt -> SQF SExpr
 ensureBlock (SQF.CodeBlock xs) = SQF.CodeBlock xs
-ensureBlock x = SQF.CodeBlock [x]
+ensureBlock x                  = SQF.CodeBlock [x]
 
 codeGenStmt :: CodeGenEnv -> Statement Resolved -> SQF SStmt
 codeGenStmt env stmt = unAnnot $ f <$> stmt
     where
         f (VariableDeclaration _ idnt mval) = case mval of
-            Nothing -> SQF.UnOp "private" $ SQF.StringLit ("_" ++ unVarName idnt)
+            Nothing     -> SQF.UnOp "private" $ SQF.StringLit ("_" ++ unVarName idnt)
             (Just expr) -> SQF.Assign SQF.Private ("_" ++ unVarName idnt) (codeGenExpr env expr)
         f (Assignment idnt expr) = setLIdent idnt (codeGenExpr env expr)
         f (Expr x) = SQF.forceStmt $ codeGenExpr env x
@@ -54,7 +54,7 @@ codeGenExpr env x = f $ unAnnot x
                         SQF.BinOp "then"
                             (SQF.UnOp "if" cond')
                             (SQF.CodeBlock (fmap (codeGenStmt env) ifTrue))
-                    (ThenDo ifTrue (Just ifFalse)) -> 
+                    (ThenDo ifTrue (Just ifFalse)) ->
                         SQF.BinOp "then"
                             (SQF.UnOp "if" cond')
                             (SQF.BinOp "else"
@@ -82,18 +82,18 @@ codeGenExpr env x = f $ unAnnot x
                 toString NotOp = "!"
         f (BinOp op l r) = SQF.BinOp (toString $ unAnnot op) (codeGenExpr env l) (codeGenExpr env r)
             where
-                toString AndOp = "&&"
-                toString OrOp = "||"
-                toString AddOp = "+"
-                toString SubOp = "-"
-                toString DivOp = "/"
-                toString MulOp = "*"
-                toString ModOp = "%"
-                toString EqOp = "isEqualTo"
-                toString NotEqOp = "isNotEqualTo"
-                toString LessOp = "<"
-                toString GreaterOp = ">"
-                toString LessEqualOp = "<="
+                toString AndOp          = "&&"
+                toString OrOp           = "||"
+                toString AddOp          = "+"
+                toString SubOp          = "-"
+                toString DivOp          = "/"
+                toString MulOp          = "*"
+                toString ModOp          = "%"
+                toString EqOp           = "isEqualTo"
+                toString NotEqOp        = "isNotEqualTo"
+                toString LessOp         = "<"
+                toString GreaterOp      = ">"
+                toString LessEqualOp    = "<="
                 toString GreaterEqualOp = ">="
         f NilLit = SQF.NulOp "nil"
 
@@ -104,9 +104,9 @@ getLIdent' :: Ident Resolved -> SQF SExpr
 getLIdent' (Ident topDecl _ fields) = foldr addFieldGet topLevelVar fields
     where
         topLevelVar = case lIdentKind topDecl of
-            ValueKind ->  SQF.Variable $ lIdentSQFName topDecl
-            NularCommandKind -> SQF.CodeBlock [SQF.NulOp $ lIdentSQFName topDecl]
-            UnaryCommandKind -> SQF.CodeBlock [SQF.UnOp (lIdentSQFName topDecl) (argNum 0)]
+            ValueKind         ->  SQF.Variable $ lIdentSQFName topDecl
+            NularCommandKind  -> SQF.CodeBlock [SQF.NulOp $ lIdentSQFName topDecl]
+            UnaryCommandKind  -> SQF.CodeBlock [SQF.UnOp (lIdentSQFName topDecl) (argNum 0)]
             BinaryCommandKind -> SQF.CodeBlock [SQF.BinOp (lIdentSQFName topDecl) (argNum 0) (argNum 1)]
         addFieldGet fieldName expr = SQF.BinOp "get" expr (SQF.StringLit $ unVarName $ unAnnot fieldName)
 

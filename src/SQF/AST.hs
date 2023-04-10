@@ -1,7 +1,7 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds          #-}
+{-# LANGUAGE FlexibleInstances  #-}
+{-# LANGUAGE GADTs              #-}
+{-# LANGUAGE KindSignatures     #-}
 {-# LANGUAGE StandaloneDeriving #-}
 module SQF.AST where
 
@@ -23,27 +23,27 @@ data SQF (a :: SQFType) where
     Assign :: Scope -> String -> SQF SExpr -> SQF SStmt
 
 forceExpr :: SQF a -> SQF SExpr
-forceExpr x@Assign{} = UnOp "call" $ CodeBlock [x]
-forceExpr (Variable x) = Variable x
-forceExpr (BinOp c l r) = BinOp c l r
-forceExpr (UnOp c x) = UnOp c x
-forceExpr (NulOp c) = NulOp c
-forceExpr (NumLit x) = NumLit x
-forceExpr (Array xs) = Array xs
-forceExpr (StringLit x) = StringLit x
-forceExpr (BoolLit x) = BoolLit x
+forceExpr x@Assign{}     = UnOp "call" $ CodeBlock [x]
+forceExpr (Variable x)   = Variable x
+forceExpr (BinOp c l r)  = BinOp c l r
+forceExpr (UnOp c x)     = UnOp c x
+forceExpr (NulOp c)      = NulOp c
+forceExpr (NumLit x)     = NumLit x
+forceExpr (Array xs)     = Array xs
+forceExpr (StringLit x)  = StringLit x
+forceExpr (BoolLit x)    = BoolLit x
 forceExpr (CodeBlock xs) = CodeBlock xs
 
 forceStmt :: SQF a -> SQF SStmt
-forceStmt x@Assign{} = x
-forceStmt (Variable x) = Variable x
-forceStmt (BinOp c l r) = BinOp c l r
-forceStmt (UnOp c x) = UnOp c x
-forceStmt (NulOp c) = NulOp c
-forceStmt (NumLit x) = NumLit x
-forceStmt (Array xs) = Array xs
-forceStmt (StringLit x) = StringLit x
-forceStmt (BoolLit x) = BoolLit x
+forceStmt x@Assign{}     = x
+forceStmt (Variable x)   = Variable x
+forceStmt (BinOp c l r)  = BinOp c l r
+forceStmt (UnOp c x)     = UnOp c x
+forceStmt (NulOp c)      = NulOp c
+forceStmt (NumLit x)     = NumLit x
+forceStmt (Array xs)     = Array xs
+forceStmt (StringLit x)  = StringLit x
+forceStmt (BoolLit x)    = BoolLit x
 forceStmt (CodeBlock xs) = CodeBlock xs
 
 deriving instance Eq (SQF SExpr)
@@ -55,8 +55,8 @@ newline :: Int -> ShowS
 newline x = showString $ "\n" ++ replicate (x*4) ' '
 
 intercalate :: ShowS -> [ShowS] -> ShowS
-intercalate _ [] = id
-intercalate _ [x] = x
+intercalate _ []         = id
+intercalate _ [x]        = x
 intercalate delim (x:xs) = x . delim . intercalate delim xs
 
 prettyPrint :: PrettyPrint a => a -> String
@@ -75,7 +75,7 @@ instance PrettyPrint (SQF a) where
         . showString " = "
         . prettyPrintPrec indent 0 expr
     prettyPrintPrec indent _ (Assign NoPrivate name expr)
-        = showString name 
+        = showString name
         . showString " = "
         . prettyPrintPrec indent 0 expr
     prettyPrintPrec _ _ (Variable x) = showString x
@@ -98,7 +98,7 @@ instance PrettyPrint (SQF a) where
     prettyPrintPrec indent p (StringLit x) = showString "\"" . showString x . showString "\"" --TODO: Better string escaping
     prettyPrintPrec indent p (BoolLit True) = showString "true"
     prettyPrintPrec indent p (BoolLit False) = showString "false"
-    prettyPrintPrec indent p (Array xs) = showString "[" . intercalate (showString ", ") (prettyPrintPrec indent p <$> xs) . showString "]" 
+    prettyPrintPrec indent p (Array xs) = showString "[" . intercalate (showString ", ") (prettyPrintPrec indent p <$> xs) . showString "]"
     prettyPrintPrec indent p (CodeBlock xs) = let
         i' = indent + 1
         in showString "{" . newline i'
@@ -107,30 +107,30 @@ instance PrettyPrint (SQF a) where
             . showString "}"
 
 precedenceOfBinOp :: String -> Int
-precedenceOfBinOp "#" = 9
-precedenceOfBinOp "^" = 8
-precedenceOfBinOp "*" = 7
-precedenceOfBinOp "/" = 7
-precedenceOfBinOp "&" = 7
-precedenceOfBinOp "mod" = 7
+precedenceOfBinOp "#"     = 9
+precedenceOfBinOp "^"     = 8
+precedenceOfBinOp "*"     = 7
+precedenceOfBinOp "/"     = 7
+precedenceOfBinOp "&"     = 7
+precedenceOfBinOp "mod"   = 7
 precedenceOfBinOp "atan2" = 7
-precedenceOfBinOp "+" = 6
-precedenceOfBinOp "-" = 6
-precedenceOfBinOp "min" = 6
-precedenceOfBinOp "max" = 6
-precedenceOfBinOp "else" = 5
-precedenceOfBinOp "==" = 3
-precedenceOfBinOp "!=" = 3
-precedenceOfBinOp ">" = 3
-precedenceOfBinOp ">=" = 3
-precedenceOfBinOp "<" = 3
-precedenceOfBinOp "<=" = 3
-precedenceOfBinOp ">>" = 3
-precedenceOfBinOp "&&" = 2
-precedenceOfBinOp "and" = 2
-precedenceOfBinOp "||" = 2
-precedenceOfBinOp "or" = 2
-precedenceOfBinOp _ = 4
+precedenceOfBinOp "+"     = 6
+precedenceOfBinOp "-"     = 6
+precedenceOfBinOp "min"   = 6
+precedenceOfBinOp "max"   = 6
+precedenceOfBinOp "else"  = 5
+precedenceOfBinOp "=="    = 3
+precedenceOfBinOp "!="    = 3
+precedenceOfBinOp ">"     = 3
+precedenceOfBinOp ">="    = 3
+precedenceOfBinOp "<"     = 3
+precedenceOfBinOp "<="    = 3
+precedenceOfBinOp ">>"    = 3
+precedenceOfBinOp "&&"    = 2
+precedenceOfBinOp "and"   = 2
+precedenceOfBinOp "||"    = 2
+precedenceOfBinOp "or"    = 2
+precedenceOfBinOp _       = 4
 
 precedenceOfUnaryOp :: Int
 precedenceOfUnaryOp = 10

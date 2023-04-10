@@ -4,21 +4,21 @@ module TQF.TypeCheck
     , typeCheck
     ) where
 
-import TQF.AST
-import TQF.AST.Annotated
-import TQF.Type
-import Control.Error.Util (note)
-import Control.Monad (when)
-import Control.Arrow
-import Safe (lastMay)
-import Data.Foldable (foldrM, traverse_, fold)
-import Data.String.Pretty
-import TQF.Resolve (resolveGenericType)
-import Data.Maybe
-import Control.Monad.Trans.Writer
-import Data.Either.Extra
-import Control.Monad.Trans.Class
-import Data.Functor
+import           Control.Arrow
+import           Control.Error.Util         (note)
+import           Control.Monad              (when)
+import           Control.Monad.Trans.Class
+import           Control.Monad.Trans.Writer
+import           Data.Either.Extra
+import           Data.Foldable              (fold, foldrM, traverse_)
+import           Data.Functor
+import           Data.Maybe
+import           Data.String.Pretty
+import           Safe                       (lastMay)
+import           TQF.AST
+import           TQF.AST.Annotated
+import           TQF.Resolve                (resolveGenericType)
+import           TQF.Type
 
 data TypeCheckErr = NotWithin (Annot (Type' String)) (Annot (Type' String))
      | NoField (Annot VarName) (Annot (Type' String))

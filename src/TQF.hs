@@ -1,26 +1,26 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards   #-}
 module TQF where
 
-import TQF.AST
-import TQF.Resolve.Env
-import           TQF.Lexer                     as Lexer
-import           TQF.Parser                    as Parser
-import           TQF.Resolve                   as Resolve
-import           TQF.TypeCheck                 as TypeCheck
-import           Data.List.Extra (nubOrd, intercalate, splitOn)
-import           Data.String.Pretty
 import           Control.Monad
 import           Control.Monad.Trans.Except
 import           Data.Bifunctor
+import           Data.List.Extra            (intercalate, nubOrd, splitOn)
+import           Data.String.Pretty
 import           System.FilePath
+import           TQF.AST
+import           TQF.Lexer                  as Lexer
+import           TQF.Parser                 as Parser
+import           TQF.Resolve                as Resolve
+import           TQF.Resolve.Env
+import           TQF.TypeCheck              as TypeCheck
 
 data CompileResult = CompileResult
-  { lexedModule :: Either String [Token]
-  , parsedModule :: Either String (Module Parsed)
-  , resolvedModule :: Either String (Module Resolved)
+  { lexedModule       :: Either String [Token]
+  , parsedModule      :: Either String (Module Parsed)
+  , resolvedModule    :: Either String (Module Resolved)
   , typeCheckedModule :: Either String (Module Resolved)
-  , compiledModule :: Either String CompiledModule
+  , compiledModule    :: Either String CompiledModule
   }
 
 class ModuleIdentifier a where
@@ -54,7 +54,7 @@ compileModule pathForModule evalPath moduleName
     return CompileResult{..}
   where
     moduleId = toModIdentifier moduleName
-    
+
     runResolver ::  Module Parsed -> IO (Either String (Module Resolved, CompiledModule))
     runResolver
       = fmap (first prettyPrint =<<)
