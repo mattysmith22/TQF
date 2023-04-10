@@ -5,11 +5,9 @@ module TQF.TypeCheck
     ) where
 
 import           Control.Arrow
-import           Control.Error.Util         (note)
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Writer
 import           Data.Either.Extra
-import           Data.Foldable              (foldrM)
 import           Data.Maybe
 import           Data.String.Pretty
 import           Safe                       (lastMay)
@@ -56,11 +54,15 @@ typeCheckStmt (Annot r (VariableDeclaration typ _ mexpr)) = do
     lift $ exprType `shouldBeWithin` typ
     return $ Annot r $ simpleType Nil
 typeCheckStmt (Annot r (Assignment var val)) = do
-    typeOfVar <- lift $ typeCheckLIdent var
+    typeOfVar <- typeCheckLValue var
     exprType <- typeCheckExpr val
     lift $ exprType `shouldBeWithin` typeOfVar
     return $ Annot r $ simpleType Nil
 typeCheckStmt (Annot _ (Expr x)) = typeCheckExpr x
+
+typeCheckLValue :: LValue Resolved -> WriterT (Maybe (Annot Type)) (Either TypeCheckErr) (Annot Type)
+typeCheckLValue (LValueVar var)                      = lift $ typeCheckLIdent var
+typeCheckLValue (LValueField expr field@(Annot r _)) = typeCheckExpr (Annot r (FieldAccess expr field))
 
 typeCheckExpr :: Expr Resolved -> WriterT (Maybe (Annot Type)) (Either TypeCheckErr) (Annot Type)
 typeCheckExpr (Annot _ (Variable x)) = lift $ typeCheckLIdent x
@@ -114,6 +116,12 @@ typeCheckExpr (Annot _ (WhileLoop cond stmt)) = do
     lift $ typeOfCond `shouldBeWithin` Annot (pos cond) (simpleType Bool)
     lift $ typeCheckBlock stmt
 typeCheckExpr (Annot r NilLit) = return (Annot r $ simpleType Nil)
+typeCheckExpr (Annot r (FieldAccess expr field)) = do
+    exprType <- typeCheckExpr expr
+    let fieldType = lookupField (unVarName $ unAnnot field) $ unAnnot exprType
+    case fieldType of
+        Nothing  -> lift $ Left $ NoField field exprType
+        (Just x) -> return $ Annot r x
 
 typeCheckBlock :: [Statement Resolved] -> Either TypeCheckErr (Annot Type)
 typeCheckBlock = fmap f . runWriterT . traverse typeCheckStmt
@@ -125,10 +133,5 @@ typeCheckBlock = fmap f . runWriterT . traverse typeCheckStmt
             in maybe retTyp (retTyp<>) mExitWithTyp
 
 typeCheckLIdent :: Annot (Ident Resolved) -> Either TypeCheckErr (Annot Type)
-typeCheckLIdent (Annot r (Ident i args fields)) = do
-    initType <- mapLeft NotFound $ resolveGenericType r (lIdentType i) (unAnnot <$> args)
-    Annot r <$> foldrM go initType fields
-    --Annot r <$> foldrM go (lIdentType initial) fields
-    where
-        go :: Annot VarName -> Type -> Either TypeCheckErr Type
-        go field x = note (NoField field (Annot r x)) $ lookupField (unVarName $ unAnnot field) x
+typeCheckLIdent (Annot r (Ident i args)) =
+    fmap (Annot r) $ mapLeft NotFound $ resolveGenericType r (lIdentType i) (unAnnot <$> args)

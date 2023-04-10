@@ -121,7 +121,7 @@ statementSpec = do
   describe "Assignment"
     $             it "Should parse an assignment"
     $             "varName = 1;"
-    `shouldParse` [a $ Assignment ( a $ Ident (varN' [] "varName") [] []) (a $ NumLiteral 1)]
+    `shouldParse` [a $ Assignment (a $ Variable $ a $ Ident (varN' [] "varName") []) (a $ NumLiteral 1)]
  where
   shouldParse inp ast =
     testParse("module Test where function func(): nil {" ++  inp ++ "}")
@@ -135,10 +135,10 @@ expressionSpec :: SpecWith ()
 expressionSpec = do
   describe "Variables" $ do
     it "Should parse a normal variable reading" $ "variable" `shouldParse` Variable
-      ( a $ Ident (varN' [] "variable") [] [])
+      ( a $ Ident (varN' [] "variable") [])
     it "Should parse a variable reading and Namespaces"
       $             "Namespace.variable"
-      `shouldParse` Variable ( a $ Ident (varN' ["Namespace"] "variable") [] [])
+      `shouldParse` Variable ( a $ Ident (varN' ["Namespace"] "variable") [])
   describe "Literals" $ do
     it "Should parse bool literals" $ do
       "true" `shouldParse` BoolLiteral True
@@ -179,7 +179,7 @@ expressionSpec = do
       "1<=2" `shouldParse` BinOp (a LessEqualOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
   describe "FunctionDecl calls" $ do
     it "Should parse a function call" $ "func(1, 2)" `shouldParse` FuncCall
-      ( a $ Ident (varN' [] "func") [] [])
+      ( a $ Ident (varN' [] "func") [])
       [ a $ NumLiteral 1, a $ NumLiteral 2]
   describe "Array construction" $ do
     it "Should parse an empty array" $ "[]" `shouldParse` ArrayExpr []

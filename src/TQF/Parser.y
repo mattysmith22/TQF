@@ -205,7 +205,7 @@ MElse :: { Annot (Maybe [Statement Parsed]) }
 
 Statement :: { Statement Parsed }
     : var LIdentSimple ':' Type VariableDeclarationAssignment {Annot ((pos $1 <> pos $4) <> fromMaybe NoPlace (fmap pos $5)) $ VariableDeclaration $4 (unAnnot $2) $5}
-    | ParsedValue '=' Expr {Annot (pos $1 <> pos $3) $ Assignment $1 $3}
+    | Expr '=' Expr {Annot (pos $1 <> pos $3) $ Assignment $1 $3}
     | Expr { Annot (pos $1) $ Expr $1 }
 
 VariableDeclarationAssignment :: { Maybe (Expr Parsed) }
@@ -238,6 +238,7 @@ Expr :: { Expr Parsed }
     | Bool {fmap BoolLiteral $1}
     | Num {fmap NumLiteral $1}
     | String {fmap StringLiteral $1}
+    | Expr FieldAccess {Annot (pos $1 <> pos $2) $ FieldAccess $1 $2}
     | '[' ExprList ']' {Annot (pos $1 <> pos $3) $ ArrayExpr $2}
     | '(' ExprList ')' { Annot (pos $1 <> pos $3) $ tupleOrParens $2}
     | '\'(' ExprList ')' { Annot (pos $1 <> pos $3) $ Tuple $2}
@@ -246,12 +247,8 @@ Expr :: { Expr Parsed }
     | while '(' Expr ')' CodeBlock {Annot (pos $1 <> pos $5) $ WhileLoop $3 (unAnnot $5)}
     | nil {Annot (pos $1) NilLit}
 
-FieldAccesses :: {[Annot VarName]}
-    : {- empty -} {[]}
-    | FieldAccess FieldAccesses {$1:$2}
-
 ParsedValue :: {Annot (Ident Parsed)}
-    : LIdent TypeParams FieldAccesses {Annot (pos $1 <> mconcat (fmap pos $2) <> mconcat (fmap pos $3)) $ Ident (unAnnot $1) $2 $3}
+    : LIdent TypeParams {Annot (pos $1 <> mconcat (fmap pos $2)) $ Ident (unAnnot $1) $2}
 
 ModuleIdent :: { Annot ResolveableModule }
     : UIdent {fmap typeToModuleIdent $1}

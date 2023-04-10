@@ -32,13 +32,16 @@ data CanCollide a = NoCollision a
     | Collision
     deriving (Show, Eq)
 
-data EnvError = EnvNotFound (Either (Annot UIdent) (Annot LIdent))
+data EnvError
+    = EnvNotFound (Either (Annot UIdent) (Annot LIdent))
     | EnvCollision (Either (Annot UIdent) (Annot LIdent))
+    | EnvInvalidLvalue (Expr Resolved)
     deriving (Show, Eq)
 
 instance Pretty EnvError where
-    prettyPrint (EnvNotFound x)  = "Not found: " ++ either prettyPrint prettyPrint x
-    prettyPrint (EnvCollision x) = "Collision: " ++ either prettyPrint prettyPrint x
+    prettyPrint (EnvNotFound x)      = "Not found: " ++ either prettyPrint prettyPrint x
+    prettyPrint (EnvCollision x)     = "Collision: " ++ either prettyPrint prettyPrint x
+    prettyPrint (EnvInvalidLvalue x) = "Invalid lvalue at " ++ prettyPrint (pos x)
 
 unpackLookupError :: Range -> Either UIdent LIdent -> Maybe (CanCollide a) -> Either EnvError a
 unpackLookupError r ident Nothing            = Left $ EnvNotFound $ Annot r +++ Annot r $ ident

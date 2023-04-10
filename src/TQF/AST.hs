@@ -32,7 +32,11 @@ type family DeclIdentF a where
   DeclIdentF Parsed = VarName
   DeclIdentF Resolved = ModLIdentDecl
 
-type ValidASTLevel a = (Show (DeclIdentF a), Eq (DeclIdentF a), Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a))
+type family LValueF a where
+  LValueF Parsed = Expr Parsed
+  LValueF Resolved = LValue Resolved
+
+type ValidASTLevel a = (Show (DeclIdentF a), Eq (DeclIdentF a), Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a), Show(LValueF a), Eq (LValueF a))
 
 data Module a = Module
   { moduleName         :: ResolveableModule
@@ -90,7 +94,7 @@ type Statement a = Annot (Statement_ a)
 
 data Statement_ a
   = VariableDeclaration (TypeDeclF a) VarName (Maybe (Expr a))
-  | Assignment (Annot (Ident a)) (Expr a)
+  | Assignment (LValueF a) (Expr a)
   | Expr (Expr a)
 
 type Expr a = Annot (Expr_ a)
@@ -106,6 +110,7 @@ data Expr_ a
   | ArrayExpr [Expr a]
   | Cast (TypeDeclF a) (Expr a)
   | Tuple [Expr a]
+  | FieldAccess (Expr a) (Annot VarName)
   | IfStatement (Expr a) (IfTrue [Statement a])
   | WhileLoop (Expr a) [Statement a]
   | NilLit
@@ -131,6 +136,8 @@ deriving instance ValidASTLevel a => Show (Expr_ a)
 deriving instance ValidASTLevel a => Eq (Expr_ a)
 deriving instance ValidASTLevel a => Show (Statement_ a)
 deriving instance ValidASTLevel a => Eq (Statement_ a)
+deriving instance ValidASTLevel a => Show (LValue a)
+deriving instance ValidASTLevel a => Eq (LValue a)
 
 data UnaryOperator = NotOp | NegOp
     deriving (Show, Eq)
@@ -149,7 +156,11 @@ data UIdent = UIdent ResolveableModule TypeName
 data LIdent = LIdent ResolveableModule VarName
   deriving (Show, Eq, Ord)
 
-data Ident a = Ident (LIdentF a) [TypeDeclF a] [Annot VarName]
+data Ident a
+  = Ident
+  { identName     :: LIdentF a
+  , identTypeArgs :: [TypeDeclF a]
+  }
 
 deriving instance ValidASTLevel a => Show (Ident a)
 deriving instance ValidASTLevel a => Eq (Ident a)
@@ -169,6 +180,10 @@ data ModLIdentDecl = ModLIdentDecl
   , lIdentSQFName :: String
   }
   deriving (Show, Eq)
+
+data LValue a
+  = LValueVar (Annot (Ident a))
+  | LValueField (Expr a) (Annot VarName)
 
 instance Show TypeName where
   show (TypeName x) = show x

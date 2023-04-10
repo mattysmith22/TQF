@@ -38,7 +38,14 @@ codeGenStmt env stmt = unAnnot $ f <$> stmt
         f (VariableDeclaration _ idnt mval) = case mval of
             Nothing     -> SQF.UnOp "private" $ SQF.StringLit ("_" ++ unVarName idnt)
             (Just expr) -> SQF.Assign SQF.Private ("_" ++ unVarName idnt) (codeGenExpr env expr)
-        f (Assignment idnt expr) = setLIdent idnt (codeGenExpr env expr)
+        f (Assignment (LValueVar ident) expr)
+            = SQF.Assign SQF.NoPrivate (lIdentSQFName $ identName $ unAnnot ident) $ codeGenExpr env expr
+        f (Assignment (LValueField lexpr field) rexpr)
+            = SQF.BinOp "set" (codeGenExpr env lexpr) $
+                SQF.Array
+                    [ SQF.StringLit $ unVarName $ unAnnot field
+                    , codeGenExpr env rexpr
+                    ]
         f (Expr x) = SQF.forceStmt $ codeGenExpr env x
 
 codeGenExpr :: CodeGenEnv -> Expr Resolved -> SQF 'SExpr
@@ -66,13 +73,14 @@ codeGenExpr env x = f $ unAnnot x
             let
                 loopExpr = SQF.CodeBlock $ fmap (codeGenStmt env) stmt
             in SQF.BinOp "do" (SQF.UnOp "while" (SQF.CodeBlock [SQF.forceStmt $ codeGenExpr env cond])) loopExpr
-        f (Variable lIdent) = getLIdent lIdent
-        f (FuncCall lIdent args) = SQF.BinOp "call" (SQF.Array $ codeGenExpr env <$> args) (getLIdent lIdent)
+        f (Variable lIdent) = getIdent $ unAnnot lIdent
+        f (FuncCall lIdent args) = SQF.BinOp "call" (SQF.Array $ codeGenExpr env <$> args) (getIdent $ unAnnot lIdent)
         f (BoolLiteral x) = SQF.BoolLit x
         f (NumLiteral x) = SQF.NumLit x
         f (StringLiteral x) = SQF.StringLit x
         f (ArrayExpr xs) = SQF.Array $ codeGenExpr env <$> xs
         f (Cast _ x) = codeGenExpr env x
+        f (FieldAccess x field) = SQF.BinOp "get" (codeGenExpr env x) (SQF.StringLit $ unVarName $ unAnnot field)
         f (Tuple xs) = SQF.Array $ fmap (codeGenExpr env) xs
         f (UnOp op x) = SQF.UnOp (toString $ unAnnot op) $ codeGenExpr env x
             where
@@ -95,25 +103,12 @@ codeGenExpr env x = f $ unAnnot x
                 toString GreaterEqualOp = ">="
         f NilLit = SQF.NulOp "nil"
 
-getLIdent :: Annot (Ident Resolved) -> SQF 'SExpr
-getLIdent = getLIdent' . unAnnot
-
-getLIdent' :: Ident Resolved -> SQF 'SExpr
-getLIdent' (Ident topDecl _ fields) = foldr addFieldGet topLevelVar fields
+getIdent :: Ident Resolved -> SQF 'SExpr
+getIdent (Ident topDecl _) = case lIdentKind topDecl of
+    ValueKind         ->  SQF.Variable $ lIdentSQFName topDecl
+    NularCommandKind  -> SQF.CodeBlock [SQF.NulOp $ lIdentSQFName topDecl]
+    UnaryCommandKind  -> SQF.CodeBlock [SQF.UnOp (lIdentSQFName topDecl) (argNum 0)]
+    BinaryCommandKind -> SQF.CodeBlock [SQF.BinOp (lIdentSQFName topDecl) (argNum 0) (argNum 1)]
     where
-        topLevelVar = case lIdentKind topDecl of
-            ValueKind         ->  SQF.Variable $ lIdentSQFName topDecl
-            NularCommandKind  -> SQF.CodeBlock [SQF.NulOp $ lIdentSQFName topDecl]
-            UnaryCommandKind  -> SQF.CodeBlock [SQF.UnOp (lIdentSQFName topDecl) (argNum 0)]
-            BinaryCommandKind -> SQF.CodeBlock [SQF.BinOp (lIdentSQFName topDecl) (argNum 0) (argNum 1)]
-        addFieldGet fieldName expr = SQF.BinOp "get" expr (SQF.StringLit $ unVarName $ unAnnot fieldName)
-
         argNum :: Double -> SQF 'SExpr
         argNum x = SQF.BinOp "select" (SQF.Variable "_this") (SQF.NumLit x)
-
-setLIdent :: Annot (Ident Resolved) -> SQF 'SExpr -> SQF 'SStmt
-setLIdent lident = setLIdent' (unAnnot lident)
-
-setLIdent' :: Ident Resolved -> SQF 'SExpr -> SQF 'SStmt
-setLIdent' (Ident x _ []) expr = SQF.Assign SQF.NoPrivate (lIdentSQFName x) expr
-setLIdent' (Ident x args fields) expr = SQF.BinOp "set" (getLIdent' (Ident x args $ init fields)) $ SQF.Array [SQF.StringLit $ unVarName $ unAnnot $ last fields, expr]

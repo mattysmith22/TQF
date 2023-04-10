@@ -230,10 +230,19 @@ resolveStatement' env (VariableDeclaration typ name mExpr) = do
     let env' = addLIdent (LIdent [] name) (createLocalDecl typ' name) env
     return $ (,env') $ VariableDeclaration typ' name resExpr
 resolveStatement' env (Assignment var expr) = do
-    var' <- traverse (resolveValue (pos var) env) var
+    var' <- resolveLValue . fst =<< resolveExpr env var
     expr' <- fst <$> resolveExpr env expr
     return $ (,env) $ Assignment var' expr'
 resolveStatement' env (Expr x) = first Expr <$> resolveExpr env x
+
+resolveLValue :: Expr Resolved -> Either EnvError (LValue Resolved)
+resolveLValue e@(Annot _ (Variable x))
+    = case lIdentKind $ identName $ unAnnot x of
+        ValueKind -> return $ LValueVar x
+        _         -> Left $ EnvInvalidLvalue e
+resolveLValue (Annot _ (FieldAccess x field))
+    = return $ LValueField x field
+resolveLValue x = Left $ EnvInvalidLvalue x
 
 resolveExpr :: Environment -> Expr Parsed -> Either EnvError (Expr Resolved, Environment)
 resolveExpr env x = do
@@ -255,6 +264,9 @@ resolveExpr' env (ArrayExpr xs) =
     (,env) . ArrayExpr <$> traverse (fmap fst . resolveExpr env) xs
 resolveExpr' env (Cast typ x) =
     fmap (,env) $ Cast <$> resolveType env typ <*> (fst <$> resolveExpr env x)
+resolveExpr' env (FieldAccess e field) = do
+    (e',env') <- resolveExpr env e
+    return $ (,env') $ FieldAccess e' field
 resolveExpr' env (Tuple xs) =
     fmap (,env) $ Tuple <$> traverse (fmap fst . resolveExpr env) xs
 resolveExpr' env (BinOp op l r) =
@@ -282,10 +294,10 @@ resolveStmts env exprs = runStateT (traverse f exprs) env
             return stmt'
 
 resolveValue :: Range -> Environment -> Ident Parsed -> Either EnvError (Ident Resolved)
-resolveValue r env (Ident lIdent args fields) = do
+resolveValue r env (Ident lIdent args) = do
     i <- lookupLIdent r env lIdent
     args' <- traverse (resolveType env) args
-    return $ Ident i args' fields
+    return $ Ident i args'
 
 resolveType :: Environment -> Annot ParsedType -> Either EnvError (Annot (Type.Type' String))
 resolveType env typ = let
