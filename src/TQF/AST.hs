@@ -6,7 +6,35 @@
 {-# LANGUAGE StandaloneDeriving   #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE UndecidableInstances #-}
-module TQF.AST where
+module TQF.AST
+  ( Module(..)
+  , ImportStatement(..)
+  , Declaration
+  , Declaration_(..)
+  , Statement
+  , Statement_(..)
+  , Expr
+  , Expr_(..)
+  , IfTrue(..)
+  , Ident(..)
+  , LValue(..)
+  , BinaryOperator(..)
+  , UnaryOperator(..)
+
+  , Parsed
+  , ParsedType(..)
+
+  , Resolved
+  , ModLIdentDecl(..)
+  , IdentKind(..)
+
+  , ToIdent(..)
+  , ResolveableModule
+  , VarName(..)
+  , LIdent(..)
+  , TypeName(..)
+  , UIdent(..)
+  ) where
 
 import           TQF.Type
 

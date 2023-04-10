@@ -3,7 +3,14 @@
 {-# LANGUAGE GADTs              #-}
 {-# LANGUAGE KindSignatures     #-}
 {-# LANGUAGE StandaloneDeriving #-}
-module SQF.AST where
+module SQF.AST
+    ( SQF(..)
+    , Scope(..)
+    , SQFType(..)
+    , forceStmt
+    , forceExpr
+    , prettyPrint
+    ) where
 
 data Scope = Private | NoPrivate
     deriving (Show, Eq)
@@ -134,6 +141,3 @@ precedenceOfBinOp _       = 4
 
 precedenceOfUnaryOp :: Int
 precedenceOfUnaryOp = 10
-
-precedenceOfNulOp :: Int
-precedenceOfNulOp = 11

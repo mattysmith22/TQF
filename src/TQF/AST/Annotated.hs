@@ -1,5 +1,11 @@
 {-# LANGUAGE InstanceSigs #-}
-module TQF.AST.Annotated where
+module TQF.AST.Annotated
+    ( Annot(..)
+    , Range(..)
+    , Pos(..)
+    , dispRange
+    , noPlace
+    ) where
 
 import           Data.Maybe         (fromMaybe)
 import           Data.String.Pretty

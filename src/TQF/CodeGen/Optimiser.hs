@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs     #-}
-module TQF.CodeGen.Optimiser where
+module TQF.CodeGen.Optimiser
+    ( optimiseCommandCall
+    ) where
 
 import           Data.Maybe (fromMaybe)
 import           SQF.AST

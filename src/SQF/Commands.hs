@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
-module SQF.Commands where
+module SQF.Commands
+  ( CommandArgs(..)
+  ) where
 
 data CommandArgs a = CommandNular
   | CommandUnary a

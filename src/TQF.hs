@@ -1,6 +1,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards   #-}
-module TQF where
+module TQF
+  ( pathForModule
+  , compileModule
+  , CompileResult(..)
+  ) where
 
 import           Control.Monad.Trans.Except
 import           Data.Bifunctor
