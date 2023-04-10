@@ -2,9 +2,7 @@ module TQF.LexerSpec
   ( spec
   ) where
 
-import           Data.List.NonEmpty (NonEmpty ((:|)))
 import           TQF.AST
-import           TQF.AST.Annotated
 import           TQF.Lexer
 import           Test.Hspec
 
@@ -21,6 +19,7 @@ u = TokenIdentUpper . toIdent
 l :: String -> Token
 l = TokenIdentLower . toIdent
 
+reservedWords :: [([Char], Token)]
 reservedWords =
   [ ("module"   , TokenModule)
   , ("where"    , TokenWhere)
@@ -34,6 +33,7 @@ reservedWords =
   , ("true"     , TokenBool True)
   ]
 
+symbols :: [([Char], Token)]
 symbols =
   [ ("=" , TokenAssign)
   , ("(" , TokenOpenP)
@@ -60,6 +60,7 @@ symbols =
   , ("!" , TokenNot)
   ]
 
+spec :: SpecWith ()
 spec = parallel $ do
   describe "Comments and spaces" $ do
     it "Should skip inline comments" $ "--testComment" `shouldLex` []

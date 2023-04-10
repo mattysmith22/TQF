@@ -14,23 +14,13 @@ import           Test.Hspec
 shouldParse' :: String -> Module Parsed -> Expectation
 shouldParse' input ast = runAlex input parse `shouldBe` Right ast
 
-unfoldWhileM :: Monad m => (a -> Bool) -> m a -> m [a]
-unfoldWhileM p m = loop id
-    where
-        loop f = do
-            x <- m
-            if p x
-                then loop (f . (x:))
-                else return (f [])
-
-alexScanTokens inp = either error id $ runAlex inp (unfoldWhileM (/=TokenEOF) alexMonadScan)
-
 testParse :: String -> Either String (Module Parsed)
 testParse inp = runAlex inp parse
 
 a :: a -> Annot a
 a = noPlace
 
+moduleSpec :: SpecWith ()
 moduleSpec = do
   it "Should parse a module heading"
     $              "module ModuleName where"
@@ -39,6 +29,7 @@ moduleSpec = do
     $              "module Test.ModuleName where"
     `shouldParse'` Module [u "Test", u "ModuleName"] [] []
 
+importSpec :: SpecWith ()
 importSpec = do
   it "Should parse a normal import statement"
     $             "import ImportModule"
@@ -58,6 +49,7 @@ importSpec = do
   shouldParse inp ast = testParse ("module Test where " ++ inp)
     `shouldBe` Right (Module [u "Test"] ast [])
 
+declarationSpec :: SpecWith ()
 declarationSpec = do
   it "Should parse a function declaration" $ do
     "function functionName(input: nil): string {}"
@@ -117,6 +109,7 @@ declarationSpec = do
   shouldParse inp ast = testParse ("module Test where " ++ inp)
     `shouldBe` Right (Module [u "Test"] [] ast)
 
+statementSpec :: SpecWith ()
 statementSpec = do
   describe "Variable Declarations" $ do
     it "Should parse a variable declaration without an assignment"
@@ -138,6 +131,7 @@ statementSpec = do
                            [a $ FunctionDecl (l "func") (a $ ParsedType $ simpleType Nil) [] [] ast]
                    )
 
+expressionSpec :: SpecWith ()
 expressionSpec = do
   describe "Variables" $ do
     it "Should parse a normal variable reading" $ "variable" `shouldParse` Variable
@@ -240,6 +234,7 @@ expressionSpec = do
                      ]
                    )
 
+spec :: SpecWith ()
 spec = parallel $ do
   describe "Module declaration" moduleSpec
   describe "Import declaration" importSpec

@@ -14,15 +14,9 @@ module TQF.Lexer
   ) where
 
 import Prelude hiding (lex)
-import Control.Monad (liftM)
 import TQF.AST
 import TQF.AST.Annotated
 import qualified TQF.Type as Type
-import Data.List.Split
-import Data.Char (isLower)
-import qualified Data.List.NonEmpty as NE
-import Data.List.NonEmpty (NonEmpty((:|)))
-import Data.List (break)
 }
 
 %wrapper "monad"
@@ -178,6 +172,7 @@ unLex TokenExitWith = "exitWith"
 unLex TokenElse = "else"
 unLex TokenWhile = "while"
 unLex TokenVar = "var"
+unLex TokenTop = "top"
 unLex TokenType = "type"
 unLex TokenFunction = "function"
 unLex TokenGlobal = "global"

@@ -6,7 +6,7 @@ import           Data.Maybe (fromMaybe)
 import           SQF.AST
 import           Safe       (atMay)
 
-nil :: SQF SExpr
+nil :: SQF 'SExpr
 nil = NulOp "nil"
 
 optimiseCommandCall :: SQF a -> SQF a

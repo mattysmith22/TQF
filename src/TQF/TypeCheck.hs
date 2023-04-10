@@ -6,12 +6,10 @@ module TQF.TypeCheck
 
 import           Control.Arrow
 import           Control.Error.Util         (note)
-import           Control.Monad              (when)
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Writer
 import           Data.Either.Extra
-import           Data.Foldable              (fold, foldrM, traverse_)
-import           Data.Functor
+import           Data.Foldable              (foldrM)
 import           Data.Maybe
 import           Data.String.Pretty
 import           Safe                       (lastMay)
@@ -46,11 +44,11 @@ typeCheckDeclaration :: Declaration Resolved -> Either TypeCheckErr ()
 typeCheckDeclaration (Annot _ FunctionDecl{..}) = do
     blockType <- typeCheckBlock functionContent
     blockType `shouldBeWithin` functionType
-typeCheckDeclaration (Annot _ VariableDecl{..}) = return ()
-typeCheckDeclaration (Annot _ TypeDecl{..}) = return ()
-typeCheckDeclaration (Annot _ CommandDecl{..}) = return ()
-typeCheckDeclaration (Annot _ ExternalFunctionDecl{..}) = return ()
-typeCheckDeclaration (Annot _ ExternalVariableDecl{..}) = return ()
+typeCheckDeclaration (Annot _ VariableDecl{}) = return ()
+typeCheckDeclaration (Annot _ TypeDecl{}) = return ()
+typeCheckDeclaration (Annot _ CommandDecl{}) = return ()
+typeCheckDeclaration (Annot _ ExternalFunctionDecl{}) = return ()
+typeCheckDeclaration (Annot _ ExternalVariableDecl{}) = return ()
 
 typeCheckStmt :: Statement Resolved -> WriterT (Maybe (Annot Type)) (Either TypeCheckErr) (Annot Type)
 typeCheckStmt (Annot r (VariableDeclaration typ _ mexpr)) = do
@@ -62,10 +60,10 @@ typeCheckStmt (Annot r (Assignment var val)) = do
     exprType <- typeCheckExpr val
     lift $ exprType `shouldBeWithin` typeOfVar
     return $ Annot r $ simpleType Nil
-typeCheckStmt (Annot r (Expr x)) = typeCheckExpr x
+typeCheckStmt (Annot _ (Expr x)) = typeCheckExpr x
 
 typeCheckExpr :: Expr Resolved -> WriterT (Maybe (Annot Type)) (Either TypeCheckErr) (Annot Type)
-typeCheckExpr (Annot r (Variable x)) = lift $ typeCheckLIdent x
+typeCheckExpr (Annot _ (Variable x)) = lift $ typeCheckLIdent x
 typeCheckExpr (Annot r (FuncCall f args)) = do
     func <- lift $ typeCheckLIdent f
     args' <- traverse typeCheckExpr args
@@ -101,6 +99,7 @@ typeCheckExpr (Annot _ (Cast typ x)) = do
 typeCheckExpr (Annot r (Tuple xs)) = Annot r . tuple . map unAnnot <$> traverse typeCheckExpr xs
 typeCheckExpr (Annot r (IfStatement cond ifT)) = do
     typeOfCond <- typeCheckExpr cond
+    lift $ typeOfCond `shouldBeWithin` Annot (pos cond) (simpleType Bool)
     case ifT of
         ThenDo thn mElse -> do
             thnTyp <- lift $ typeCheckBlock thn
@@ -110,9 +109,7 @@ typeCheckExpr (Annot r (IfStatement cond ifT)) = do
             exitWithTyp <- lift $ typeCheckBlock exitWith
             tell $ Just exitWithTyp
             return (Annot r $ simpleType Nil) -- If a value is passed back then the exitWith was not hit
-    lift $ typeOfCond `shouldBeWithin` Annot (pos cond) (simpleType Bool)
-    lift $ fold <$> mapM typeCheckBlock ifT
-typeCheckExpr (Annot r (WhileLoop cond stmt)) = do
+typeCheckExpr (Annot _ (WhileLoop cond stmt)) = do
     typeOfCond <- typeCheckExpr cond
     lift $ typeOfCond `shouldBeWithin` Annot (pos cond) (simpleType Bool)
     lift $ typeCheckBlock stmt

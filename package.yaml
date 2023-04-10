@@ -39,6 +39,10 @@ build-tools:
 
 library:
   source-dirs: src
+  ghc-options:
+    - -Wall
+    - -Werror
+    - -Wno-name-shadowing
 
 executables:
   TQF-exe:
@@ -48,6 +52,8 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -Wall
+    - -Werror
     dependencies:
     - TQF
     - pretty-simple
@@ -63,6 +69,8 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -Wall
+    - -Werror
     dependencies:
     - TQF
     - hspec

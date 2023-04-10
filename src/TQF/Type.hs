@@ -33,20 +33,17 @@ module TQF.Type
     , validateUnOp
     ) where
 
-import           Control.Arrow
 import           Control.Monad         (unless)
-import           Data.Either           (fromLeft, fromRight, isRight)
-import           Data.Foldable         (asum, traverse_)
+import           Data.Foldable         (traverse_)
 import           Data.Functor.Identity ()
 import           Data.List             (intercalate)
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
-import           Data.Maybe            (fromJust, isJust, mapMaybe)
+import           Data.Maybe            (fromJust, isJust)
 import           Data.Set              (Set)
 import qualified Data.Set              as Set
 import           Data.String.Pretty
 import           Data.Zip
-import           SQF.Commands
 import           Test.QuickCheck
 
 class Within a where
@@ -228,8 +225,8 @@ extra = Options . Set.singleton . ExtraType
 intersect :: Type -> Type -> Type
 intersect Top x = x
 intersect x Top = x
-intersect (Options l) (Options r)
-    = Options $ Set.map fromJust $ Set.filter isJust $ Set.map (uncurry intersectBase) $ Set.cartesianProduct l r
+intersect (Options ls) (Options rs)
+    = Options $ Set.map fromJust $ Set.filter isJust $ Set.map (uncurry intersectBase) $ Set.cartesianProduct ls rs
     where
     intersectBase :: BaseType String -> BaseType String -> Maybe (BaseType String)
     SimpleType l `intersectBase` SimpleType r = if l == r then Just $ SimpleType l else Nothing
@@ -299,11 +296,11 @@ intersect (Options l) (Options r)
     intersectSimpleRecord _ _       = Nothing
 
     intersectArrayTuple :: Type -> [Type] -> Maybe (BaseType String)
-    intersectArrayTuple l [r] = fmap (TupleType . pure) $ stripIfBottom $ intersect l r
-    intersectArrayTuple _ _   = Nothing
+    intersectArrayTuple lt [rt] = fmap (TupleType . pure) $ stripIfBottom $ intersect lt rt
+    intersectArrayTuple _ _     = Nothing
 
     intersectTupleTuple :: [Type] -> [Type] -> Maybe (BaseType String)
-    intersectTupleTuple l r = Just $ TupleType $ takeWhile (not . isBottom) $ zipWith intersect l r
+    intersectTupleTuple lTypes rTypes = Just $ TupleType $ takeWhile (not . isBottom) $ zipWith intersect lTypes rTypes
 
     intersectCodeCode :: ([Type], Type) -> ([Type], Type) -> Maybe (BaseType String)
     intersectCodeCode (la, lr) (ra, rr)
@@ -315,13 +312,13 @@ intersect (Options l) (Options r)
             args = uncurry intersect <$> zipPadded top top la ra
 
     intersectRecordRecord :: Map String Type -> Map String Type -> Maybe (BaseType String)
-    intersectRecordRecord l r
+    intersectRecordRecord lfields rfields
         | any isBottom middle = Nothing
         | otherwise = Just $ RecordType $ lOnly <> rOnly <> middle
         where
-            lOnly = l `Map.difference` r
-            rOnly = r `Map.difference` l
-            middle = Map.intersectionWith intersect l r
+            lOnly = lfields `Map.difference` rfields
+            rOnly = rfields `Map.difference` lfields
+            middle = Map.intersectionWith intersect lfields rfields
 
     stripIfBottom :: Type -> Maybe Type
     stripIfBottom x = if isBottom x then Nothing else Just x
@@ -363,8 +360,8 @@ validateFuncCall (Options xs) argsIn
         validateFuncCallBaseType notCode = Left (Options $ Set.singleton notCode, code argsIn Top)
 
 validateBinOp :: [(SimpleType,SimpleType,SimpleType)] -> Type -> Type -> Either (Type,Type) Type
-validateBinOp validOps Top r = Left (Top,r)
-validateBinOp validOps l Top = Left (l,Top)
+validateBinOp _ Top r = Left (Top,r)
+validateBinOp _ l Top = Left (l,Top)
 validateBinOp validOps (Options l) (Options r) = fmap mconcat $ mapM (uncurry matches) $ Set.toList $ Set.cartesianProduct l r
     where
         matches :: BaseType String -> BaseType String -> Either (Type, Type) Type
@@ -385,8 +382,8 @@ validateBinOp validOps (Options l) (Options r) = fmap mconcat $ mapM (uncurry ma
         eitherOf (Right x) _        = Right x
 
 validateUnOp :: [(SimpleType,SimpleType)] -> Type -> Either Type Type
-validateUnOp validOps Top = Left Top
-validateUnOp validOps (Options x) = fmap mconcat $ mapM matches $ Set.toList x
+validateUnOp _ Top = Left Top
+validateUnOp validOps (Options os) = fmap mconcat $ mapM matches $ Set.toList os
     where
         matches :: BaseType String -> Either Type Type
         matches x' = foldl1 eitherOf $ fmap (isValidOp x') validOps
@@ -417,7 +414,7 @@ instance Pretty Type where
             showBaseTypePretty (ConstType (ConstBool False)) = "false"
             showBaseTypePretty (ArrayType x) = "[" ++ prettyPrint x ++ "]"
             showBaseTypePretty (TupleType [x]) = "'(" ++ prettyPrint x ++ ")"
-            showBaseTypePretty (TupleType xs) = "(" ++ intercalate "," (fmap prettyPrint xs) ++ ")"
+            showBaseTypePretty (TupleType ts) = "(" ++ intercalate "," (fmap prettyPrint ts) ++ ")"
             showBaseTypePretty (CodeType args ret) = "(" ++ intercalate "," (fmap prettyPrint args) ++ ") -> " ++ prettyPrint ret
             showBaseTypePretty (RecordType fields) = "{" ++ intercalate ", " ((\(k,v) -> k ++ ": " ++ prettyPrint v) <$> Map.toList fields) ++ "}"
             showBaseTypePretty (ExtraType x) = x

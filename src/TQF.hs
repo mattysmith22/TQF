@@ -2,10 +2,9 @@
 {-# LANGUAGE RecordWildCards   #-}
 module TQF where
 
-import           Control.Monad
 import           Control.Monad.Trans.Except
 import           Data.Bifunctor
-import           Data.List.Extra            (intercalate, nubOrd, splitOn)
+import           Data.List.Extra            (intercalate)
 import           Data.String.Pretty
 import           System.FilePath
 import           TQF.AST

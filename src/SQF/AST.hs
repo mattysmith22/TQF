@@ -12,17 +12,17 @@ data SQFType = SStmt | SExpr
 
 data SQF (a :: SQFType) where
     Variable :: String -> SQF a
-    BinOp :: String -> SQF SExpr -> SQF SExpr -> SQF a
-    UnOp :: String -> SQF SExpr -> SQF a
+    BinOp :: String -> SQF 'SExpr -> SQF 'SExpr -> SQF a
+    UnOp :: String -> SQF 'SExpr -> SQF a
     NulOp :: String -> SQF a
     NumLit :: Double -> SQF a
-    Array :: [SQF SExpr] -> SQF a
+    Array :: [SQF 'SExpr] -> SQF a
     StringLit :: String -> SQF a
     BoolLit :: Bool -> SQF a
-    CodeBlock :: [SQF SStmt] -> SQF a
-    Assign :: Scope -> String -> SQF SExpr -> SQF SStmt
+    CodeBlock :: [SQF 'SStmt] -> SQF a
+    Assign :: Scope -> String -> SQF 'SExpr -> SQF 'SStmt
 
-forceExpr :: SQF a -> SQF SExpr
+forceExpr :: SQF a -> SQF 'SExpr
 forceExpr x@Assign{}     = UnOp "call" $ CodeBlock [x]
 forceExpr (Variable x)   = Variable x
 forceExpr (BinOp c l r)  = BinOp c l r
@@ -34,7 +34,7 @@ forceExpr (StringLit x)  = StringLit x
 forceExpr (BoolLit x)    = BoolLit x
 forceExpr (CodeBlock xs) = CodeBlock xs
 
-forceStmt :: SQF a -> SQF SStmt
+forceStmt :: SQF a -> SQF 'SStmt
 forceStmt x@Assign{}     = x
 forceStmt (Variable x)   = Variable x
 forceStmt (BinOp c l r)  = BinOp c l r
@@ -46,10 +46,10 @@ forceStmt (StringLit x)  = StringLit x
 forceStmt (BoolLit x)    = BoolLit x
 forceStmt (CodeBlock xs) = CodeBlock xs
 
-deriving instance Eq (SQF SExpr)
-deriving instance Eq (SQF SStmt)
-deriving instance Show (SQF SExpr)
-deriving instance Show (SQF SStmt)
+deriving instance Eq (SQF 'SExpr)
+deriving instance Eq (SQF 'SStmt)
+deriving instance Show (SQF 'SExpr)
+deriving instance Show (SQF 'SStmt)
 
 newline :: Int -> ShowS
 newline x = showString $ "\n" ++ replicate (x*4) ' '
@@ -65,7 +65,7 @@ prettyPrint x = prettyPrintPrec 0 0 x ""
 class PrettyPrint a where
     prettyPrintPrec :: Int -> Int -> a -> ShowS
 
-instance PrettyPrint [SQF SStmt] where
+instance PrettyPrint [SQF 'SStmt] where
     prettyPrintPrec indent p xs = intercalate (newline indent) ((\x -> prettyPrintPrec indent p x . showString ";") <$> xs)
 
 instance PrettyPrint (SQF a) where
@@ -93,13 +93,13 @@ instance PrettyPrint (SQF a) where
             $ showString name
             . showString " "
             . prettyPrintPrec indent opPrec x
-    prettyPrintPrec indent p (NulOp name) = showString name
-    prettyPrintPrec indent p (NumLit x) = showString (show x)
-    prettyPrintPrec indent p (StringLit x) = showString "\"" . showString x . showString "\"" --TODO: Better string escaping
-    prettyPrintPrec indent p (BoolLit True) = showString "true"
-    prettyPrintPrec indent p (BoolLit False) = showString "false"
-    prettyPrintPrec indent p (Array xs) = showString "[" . intercalate (showString ", ") (prettyPrintPrec indent p <$> xs) . showString "]"
-    prettyPrintPrec indent p (CodeBlock xs) = let
+    prettyPrintPrec _ _ (NulOp name) = showString name
+    prettyPrintPrec _ _ (NumLit x) = showString (show x)
+    prettyPrintPrec _ _ (StringLit x) = showString "\"" . showString x . showString "\"" --TODO: Better string escaping
+    prettyPrintPrec _ _ (BoolLit True) = showString "true"
+    prettyPrintPrec _ _ (BoolLit False) = showString "false"
+    prettyPrintPrec indent _ (Array xs) = showString "[" . intercalate (showString ", ") (prettyPrintPrec indent 0 <$> xs) . showString "]"
+    prettyPrintPrec indent _ (CodeBlock xs) = let
         i' = indent + 1
         in showString "{" . newline i'
             . intercalate (newline i') (fmap (\x -> prettyPrintPrec i' 0 x . showString ";") xs)

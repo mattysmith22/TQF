@@ -8,19 +8,15 @@ module TQF.Resolve
 
 import           Control.Arrow
 import           Control.Error
-import           Control.Monad                   (foldM, liftM)
 import           Control.Monad.State
-import           Control.Monad.Trans.Writer.Lazy
-import           Data.Either.Extra               (fromRight, mapLeft)
-import           Data.List                       (intercalate)
-import           Data.List.NonEmpty              (NonEmpty ((:|)))
-import qualified Data.Map                        as Map
-import           Data.Tuple.Extra                (firstM)
+import           Data.Either.Extra   (fromRight, mapLeft)
+import           Data.List           (intercalate)
+import qualified Data.Map            as Map
+import           Data.Tuple.Extra    (firstM)
 import           TQF.AST
 import           TQF.AST.Annotated
 import           TQF.Resolve.Env
-import           TQF.Type                        (Type)
-import qualified TQF.Type                        as Type
+import qualified TQF.Type            as Type
 
 applyWhen :: Bool -> (a -> a) -> a -> a
 applyWhen True f   = f
@@ -106,7 +102,7 @@ identForDecl mod env VariableDecl{..} = do
             , lIdentKind = ValueKind
             , lIdentSQFName = sqfName
             }
-identForDecl mod env TypeDecl{..} = do
+identForDecl _ env TypeDecl{..} = do
     let env' = addTypeParams typeParams env
     typ <- resolveType env' typeValue
     return $ Left (typeName, Type.GenericType (unTypeName <$> typeParams) $ unAnnot typ)
@@ -151,7 +147,7 @@ resolveDeclaration :: Environment -> Either Type.GenericType ModLIdentDecl -> De
 resolveDeclaration env idnt = traverse (resolveDeclaration' env idnt)
 
 resolveDeclaration' :: Environment -> Either Type.GenericType ModLIdentDecl -> Declaration_ Parsed -> Either EnvError (Declaration_ Resolved)
-resolveDeclaration' env' idnt d@FunctionDecl{..} = do
+resolveDeclaration' env' idnt FunctionDecl{..} = do
     let env = addTypeArgsToEnv functionTypeParams env'
     ret <- resolveType env functionType
     args <- traverse (fmap (fst &&& uncurry createLocalDecl) . firstM (resolveType env)) functionArguments
@@ -165,14 +161,14 @@ resolveDeclaration' env' idnt d@FunctionDecl{..} = do
         }
     where
         addArgsToEnv :: [(Annot (Type.Type' String), ModLIdentDecl)] -> Environment -> Environment
-        addArgsToEnv args env = foldr (\(t, n) -> addLIdent (LIdent [] $ lIdentName n) n) env args
+        addArgsToEnv args env = foldr ((\n -> addLIdent (LIdent [] $ lIdentName n) n) . snd) env args
 resolveDeclaration' env idnt VariableDecl{..} = do
     typ <- resolveType env variableType
     return VariableDecl
         { variableName = fromRight (error "Variable returned a type decl") idnt
         , variableType = typ
         }
-resolveDeclaration' env' idnt TypeDecl{..} = do
+resolveDeclaration' env' _ TypeDecl{..} = do
     let env = addTypeArgsToEnv typeParams env'
     typ <- resolveType env typeValue
     return TypeDecl
@@ -300,7 +296,7 @@ resolveType env typ = let
     in Annot (pos typ) <$> Type.resolveType lookupF (unParsedType $ unAnnot typ)
 
 resolveGenericType :: Range -> Type.GenericType -> [Type.Type' String] -> Either (Annot UIdent) (Type.Type' String)
-resolveGenericType r (Type.GenericType [] val) _ = Right val
+resolveGenericType _ (Type.GenericType [] val) _ = Right val
 resolveGenericType r (Type.GenericType argNames val) args = let
     -- TODO: Improve hardness of argument handling here - check matching lengths etc.
     env' = Map.fromList $ zip argNames args

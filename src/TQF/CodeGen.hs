@@ -2,39 +2,37 @@
 {-# LANGUAGE RecordWildCards #-}
 module TQF.CodeGen where
 
-import           Data.List         (intercalate)
 import           SQF.AST           (SQF, SQFType (..))
 import qualified SQF.AST           as SQF
-import           Safe
 import           TQF.AST
 import           TQF.AST.Annotated
 
-codeGen :: Module Resolved -> [SQF SStmt]
-codeGen Module{..} = concatMap (codeGenDecl moduleName) moduleDeclarations
+codeGen :: Module Resolved -> [SQF 'SStmt]
+codeGen Module{..} = concatMap codeGenDecl moduleDeclarations
 
 newtype CodeGenEnv = CodeGenEnv
     { envFunction :: String
     }
 
-codeGenDecl :: ResolveableModule -> Declaration Resolved -> [SQF SStmt]
-codeGenDecl modPath decl = unAnnot $ codeGenDecl' modPath <$> decl
+codeGenDecl :: Declaration Resolved -> [SQF 'SStmt]
+codeGenDecl decl = unAnnot $ codeGenDecl' <$> decl
 
-codeGenDecl' :: ResolveableModule -> Declaration_ Resolved -> [SQF SStmt]
-codeGenDecl' modPath FunctionDecl{..} = let
+codeGenDecl' :: Declaration_ Resolved -> [SQF 'SStmt]
+codeGenDecl' FunctionDecl{..} = let
     functionPath = lIdentSQFName functionName
     compiledStatements = fmap (codeGenStmt env) functionContent
     paramsStatement = SQF.UnOp "params" $ SQF.Array $ fmap (SQF.StringLit . lIdentSQFName . snd) functionArguments
     env = CodeGenEnv functionPath
     in [SQF.Assign SQF.NoPrivate functionPath $ SQF.CodeBlock (paramsStatement:compiledStatements)]
-codeGenDecl' _ _ = []
+codeGenDecl' _ = []
 
 
 
-ensureBlock :: SQF SStmt -> SQF SExpr
+ensureBlock :: SQF 'SStmt -> SQF 'SExpr
 ensureBlock (SQF.CodeBlock xs) = SQF.CodeBlock xs
 ensureBlock x                  = SQF.CodeBlock [x]
 
-codeGenStmt :: CodeGenEnv -> Statement Resolved -> SQF SStmt
+codeGenStmt :: CodeGenEnv -> Statement Resolved -> SQF 'SStmt
 codeGenStmt env stmt = unAnnot $ f <$> stmt
     where
         f (VariableDeclaration _ idnt mval) = case mval of
@@ -43,10 +41,10 @@ codeGenStmt env stmt = unAnnot $ f <$> stmt
         f (Assignment idnt expr) = setLIdent idnt (codeGenExpr env expr)
         f (Expr x) = SQF.forceStmt $ codeGenExpr env x
 
-codeGenExpr :: CodeGenEnv -> Expr Resolved -> SQF SExpr
+codeGenExpr :: CodeGenEnv -> Expr Resolved -> SQF 'SExpr
 codeGenExpr env x = f $ unAnnot x
     where
-        f :: Expr_ Resolved -> SQF SExpr
+        f :: Expr_ Resolved -> SQF 'SExpr
         f (IfStatement cond subStmts) =
             let cond' = codeGenExpr env cond
             in case subStmts of
@@ -97,10 +95,10 @@ codeGenExpr env x = f $ unAnnot x
                 toString GreaterEqualOp = ">="
         f NilLit = SQF.NulOp "nil"
 
-getLIdent :: Annot (Ident Resolved) -> SQF SExpr
+getLIdent :: Annot (Ident Resolved) -> SQF 'SExpr
 getLIdent = getLIdent' . unAnnot
 
-getLIdent' :: Ident Resolved -> SQF SExpr
+getLIdent' :: Ident Resolved -> SQF 'SExpr
 getLIdent' (Ident topDecl _ fields) = foldr addFieldGet topLevelVar fields
     where
         topLevelVar = case lIdentKind topDecl of
@@ -110,12 +108,12 @@ getLIdent' (Ident topDecl _ fields) = foldr addFieldGet topLevelVar fields
             BinaryCommandKind -> SQF.CodeBlock [SQF.BinOp (lIdentSQFName topDecl) (argNum 0) (argNum 1)]
         addFieldGet fieldName expr = SQF.BinOp "get" expr (SQF.StringLit $ unVarName $ unAnnot fieldName)
 
-        argNum :: Double -> SQF SExpr
+        argNum :: Double -> SQF 'SExpr
         argNum x = SQF.BinOp "select" (SQF.Variable "_this") (SQF.NumLit x)
 
-setLIdent :: Annot (Ident Resolved) -> SQF SExpr -> SQF SStmt
+setLIdent :: Annot (Ident Resolved) -> SQF 'SExpr -> SQF 'SStmt
 setLIdent lident = setLIdent' (unAnnot lident)
 
-setLIdent' :: Ident Resolved -> SQF SExpr -> SQF SStmt
+setLIdent' :: Ident Resolved -> SQF 'SExpr -> SQF 'SStmt
 setLIdent' (Ident x _ []) expr = SQF.Assign SQF.NoPrivate (lIdentSQFName x) expr
 setLIdent' (Ident x args fields) expr = SQF.BinOp "set" (getLIdent' (Ident x args $ init fields)) $ SQF.Array [SQF.StringLit $ unVarName $ unAnnot $ last fields, expr]

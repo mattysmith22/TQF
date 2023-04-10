@@ -11,14 +11,10 @@ module TQF.AST where
 import           TQF.Type
 
 import           Control.Arrow
-import           Data.Char          (isLower)
 import           Data.List.Extra    (intercalate, unsnoc)
-import           Data.List.NonEmpty (NonEmpty ((:|)))
-import qualified Data.List.NonEmpty as NE
 import           Data.List.Split    (splitOn)
 import           Data.Maybe         (fromJust)
 import           Data.String.Pretty
-import           SQF.Commands
 import           TQF.AST.Annotated
 
 data Parsed
@@ -89,20 +85,6 @@ data Declaration_ a = FunctionDecl
 
 deriving instance ValidASTLevel a => Show (Declaration_ a)
 deriving instance ValidASTLevel a => Eq (Declaration_ a)
-
-instance Functor CommandArgs where
-  fmap _ CommandNular        = CommandNular
-  fmap f (CommandUnary x)    = CommandUnary (f x)
-  fmap f (CommandBinary x y) = CommandBinary (f x) (f y)
-instance Foldable CommandArgs where
-  foldr _ acc CommandNular        = acc
-  foldr f acc (CommandUnary x)    = f x acc
-  foldr f acc (CommandBinary x y) = f x (f y acc)
-instance Traversable CommandArgs where
-  traverse :: Applicative f => (a -> f b) -> CommandArgs a -> f (CommandArgs b)
-  traverse f CommandNular        = pure CommandNular
-  traverse f (CommandUnary x)    = CommandUnary <$> f x
-  traverse f (CommandBinary x y) = CommandBinary <$> f x <*> f y
 
 type Statement a = Annot (Statement_ a)
 

@@ -12,12 +12,9 @@ module TQF.Resolve.Env
     ) where
 
 import           Control.Arrow
-import           Data.List.NonEmpty
 import           Data.Map           (Map)
 import qualified Data.Map           as Map
-import           Data.Maybe         (fromMaybe)
 import           Data.String.Pretty
-import           SQF.Commands
 import           TQF.AST
 import           TQF.AST.Annotated
 import           TQF.Type
@@ -44,9 +41,9 @@ instance Pretty EnvError where
     prettyPrint (EnvCollision x) = "Collision: " ++ either prettyPrint prettyPrint x
 
 unpackLookupError :: Range -> Either UIdent LIdent -> Maybe (CanCollide a) -> Either EnvError a
-unpackLookupError r ident Nothing                = Left $ EnvNotFound $ Annot r +++ Annot r $ ident
-unpackLookupError r ident (Just Collision)       = Left $ EnvCollision $ Annot r +++ Annot r $ ident
-unpackLookupError r ident (Just (NoCollision x)) = return x
+unpackLookupError r ident Nothing            = Left $ EnvNotFound $ Annot r +++ Annot r $ ident
+unpackLookupError r ident (Just Collision)   = Left $ EnvCollision $ Annot r +++ Annot r $ ident
+unpackLookupError _ _ (Just (NoCollision x)) = return x
 
 lookupUIdent :: Range -> Environment -> UIdent -> Either EnvError GenericType
 lookupUIdent r Environment{..} uident = unpackLookupError r (Left uident) (Map.lookup uident envUIdents)
@@ -55,7 +52,7 @@ addUIdent :: UIdent -> GenericType -> Environment -> Environment
 addUIdent uident decl env = env { envUIdents = Map.insert uident (NoCollision decl) $ envUIdents env }
 
 lookupLIdent :: Range -> Environment -> LIdent -> Either EnvError ModLIdentDecl
-lookupLIdent r Environment{..} x@(LIdent modl name) = unpackLookupError r (Right x) (Map.lookup x envLIdents)
+lookupLIdent r Environment{..} x = unpackLookupError r (Right x) (Map.lookup x envLIdents)
 
 addLIdent :: LIdent -> ModLIdentDecl -> Environment -> Environment
 addLIdent lident decl env = env { envLIdents = Map.insert lident (NoCollision decl) $ envLIdents env }

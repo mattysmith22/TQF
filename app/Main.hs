@@ -3,23 +3,18 @@ module Main where
 
 import           Text.Pretty.Simple
 
-import           Control.Monad          (forM, forM_, when)
+import           Control.Monad          (forM_, when)
 import           Data.Char              (isUpper)
-import           Data.List.Extra        (intercalate, nubOrd, splitOn)
-import           Data.Maybe             (fromJust, fromMaybe)
+import           Data.List.Extra        (splitOn)
+import           Data.Maybe             (fromMaybe)
 import           Options.Applicative
 import qualified SQF.AST                as SQF
-import           Safe                   (headMay)
 import           System.Directory.Extra (createDirectoryIfMissing)
-import           System.Environment     (getArgs)
-import           System.Exit            (ExitCode (ExitFailure), exitWith)
-import           System.FilePath        (joinPath, takeDirectory, takeExtension, (<.>))
-import qualified System.FilePath.Find   as Find
+import           System.FilePath        (takeDirectory)
 import           TQF
 import           TQF.AST
 import qualified TQF.CodeGen            as CodeGen
 import           TQF.CodeGen.Optimiser  as Optimiser
-import           TQF.Resolve.Env        (CompiledModule)
 
 data CompileArgs = CompileArgs
   { modulesToCompile :: [String]

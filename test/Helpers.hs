@@ -1,7 +1,5 @@
 module Helpers where
 
-import           Data.List.NonEmpty (NonEmpty ((:|)))
-import qualified Data.Map           as Map
 import           TQF.AST
 
 typN :: String -> UIdent
