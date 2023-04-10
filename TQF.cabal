@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d0872bd77077280e1a14154885d303e124736d40d659724c1dce84a2d2daa5b9
+-- hash: 917996ccbfb258d9c2aca4fcd39fd5b0bbf4d3b3a61e2ef52d303a7bafda965f
 
 name:           TQF
 version:        0.1.0.0
@@ -27,7 +27,6 @@ source-repository head
 
 library
   exposed-modules:
-      Data.String.CaseInsensitive
       Data.String.Pretty
       Data.Zip
       SQF.AST
