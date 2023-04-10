@@ -127,8 +127,8 @@ typeCheckBlock = fmap f . runWriterT . traverse typeCheckStmt
                 retTyp = fromMaybe (Annot NoPlace $ simpleType Nil) $ lastMay typs
             in maybe retTyp (retTyp<>) mExitWithTyp
 
-typeCheckLIdent :: Annot ResolvedValue -> Either TypeCheckErr (Annot Type)
-typeCheckLIdent (Annot r (ResolvedValue i args fields)) = do
+typeCheckLIdent :: Annot (Ident Resolved) -> Either TypeCheckErr (Annot Type)
+typeCheckLIdent (Annot r (Ident i args fields)) = do
     initType <- mapLeft NotFound $ resolveGenericType r (lIdentType i) (unAnnot <$> args)
     Annot r <$> foldrM go initType fields
     --Annot r <$> foldrM go (lIdentType initial) fields

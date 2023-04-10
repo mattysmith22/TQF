@@ -283,11 +283,11 @@ resolveStmts env exprs = runStateT (traverse f exprs) env
             put env'
             return stmt'
 
-resolveValue :: Range -> Environment -> ParsedValue -> Either EnvError ResolvedValue
-resolveValue r env (ParsedValue lIdent args fields) = do
+resolveValue :: Range -> Environment -> Ident Parsed -> Either EnvError (Ident Resolved)
+resolveValue r env (Ident lIdent args fields) = do
     i <- lookupLIdent r env lIdent
     args' <- traverse (resolveType env) args
-    return $ ResolvedValue i args' fields
+    return $ Ident i args' fields
 
 resolveType :: Environment -> Annot ParsedType -> Either EnvError (Annot (Type.Type' String))
 resolveType env typ = let

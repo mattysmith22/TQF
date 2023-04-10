@@ -250,8 +250,8 @@ FieldAccesses :: {[Annot VarName]}
     : {- empty -} {[]}
     | FieldAccess FieldAccesses {$1:$2}
 
-ParsedValue :: {Annot ParsedValue}
-    : LIdent TypeParams FieldAccesses {Annot (pos $1 <> mconcat (fmap pos $2) <> mconcat (fmap pos $3)) $ ParsedValue (unAnnot $1) $2 $3}
+ParsedValue :: {Annot (Ident Parsed)}
+    : LIdent TypeParams FieldAccesses {Annot (pos $1 <> mconcat (fmap pos $2) <> mconcat (fmap pos $3)) $ Ident (unAnnot $1) $2 $3}
 
 ModuleIdent :: { Annot ResolveableModule }
     : UIdent {fmap typeToModuleIdent $1}

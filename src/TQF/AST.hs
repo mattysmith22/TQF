@@ -23,8 +23,8 @@ type family TypeDeclF a where
   TypeDeclF Resolved = Annot (Type' String)
 
 type family LIdentF a where
-  LIdentF Parsed = Annot ParsedValue
-  LIdentF Resolved = Annot ResolvedValue
+  LIdentF Parsed = LIdent
+  LIdentF Resolved = ModLIdentDecl
 
 type family DeclIdentF a where
   DeclIdentF Parsed = VarName
@@ -102,14 +102,14 @@ type Statement a = Annot (Statement_ a)
 
 data Statement_ a
   = VariableDeclaration (TypeDeclF a) VarName (Maybe (Expr a))
-  | Assignment (LIdentF a) (Expr a)
+  | Assignment (Annot (Ident a)) (Expr a)
   | Expr (Expr a)
 
 type Expr a = Annot (Expr_ a)
 
 data Expr_ a
-  = Variable (LIdentF a)
-  | FuncCall (LIdentF a) [Expr a]
+  = Variable (Annot (Ident a))
+  | FuncCall (Annot (Ident a)) [Expr a]
   | BoolLiteral Bool
   | UnOp (Annot UnaryOperator) (Expr a)
   | BinOp (Annot BinaryOperator) (Expr a) (Expr a)
@@ -161,10 +161,11 @@ data UIdent = UIdent ResolveableModule TypeName
 data LIdent = LIdent ResolveableModule VarName
   deriving (Show, Eq, Ord)
 
-data ParsedValue = ParsedValue LIdent [TypeDeclF Parsed] [Annot VarName]
-  deriving (Show, Eq)
-data ResolvedValue = ResolvedValue ModLIdentDecl [TypeDeclF Resolved] [Annot VarName]
-  deriving (Show, Eq)
+data Ident a = Ident (LIdentF a) [TypeDeclF a] [Annot VarName]
+
+deriving instance ValidASTLevel a => Show (Ident a)
+deriving instance ValidASTLevel a => Eq (Ident a)
+
 type ResolveableModule = [TypeName]
 
 newtype TypeName = TypeName {unTypeName:: String}

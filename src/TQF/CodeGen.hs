@@ -97,11 +97,11 @@ codeGenExpr env x = f $ unAnnot x
                 toString GreaterEqualOp = ">="
         f NilLit = SQF.NulOp "nil"
 
-getLIdent :: Annot ResolvedValue -> SQF SExpr
+getLIdent :: Annot (Ident Resolved) -> SQF SExpr
 getLIdent = getLIdent' . unAnnot
 
-getLIdent' :: ResolvedValue -> SQF SExpr
-getLIdent' (ResolvedValue topDecl _ fields) = foldr addFieldGet topLevelVar fields
+getLIdent' :: Ident Resolved -> SQF SExpr
+getLIdent' (Ident topDecl _ fields) = foldr addFieldGet topLevelVar fields
     where
         topLevelVar = case lIdentKind topDecl of
             ValueKind ->  SQF.Variable $ lIdentSQFName topDecl
@@ -113,9 +113,9 @@ getLIdent' (ResolvedValue topDecl _ fields) = foldr addFieldGet topLevelVar fiel
         argNum :: Double -> SQF SExpr
         argNum x = SQF.BinOp "select" (SQF.Variable "_this") (SQF.NumLit x)
 
-setLIdent :: Annot ResolvedValue -> SQF SExpr -> SQF SStmt
+setLIdent :: Annot (Ident Resolved) -> SQF SExpr -> SQF SStmt
 setLIdent lident = setLIdent' (unAnnot lident)
 
-setLIdent' :: ResolvedValue -> SQF SExpr -> SQF SStmt
-setLIdent' (ResolvedValue x _ []) expr = SQF.Assign SQF.NoPrivate (lIdentSQFName x) expr
-setLIdent' (ResolvedValue x args fields) expr = SQF.BinOp "set" (getLIdent' (ResolvedValue x args $ init fields)) $ SQF.Array [SQF.StringLit $ unVarName $ unAnnot $ last fields, expr]
+setLIdent' :: Ident Resolved -> SQF SExpr -> SQF SStmt
+setLIdent' (Ident x _ []) expr = SQF.Assign SQF.NoPrivate (lIdentSQFName x) expr
+setLIdent' (Ident x args fields) expr = SQF.BinOp "set" (getLIdent' (Ident x args $ init fields)) $ SQF.Array [SQF.StringLit $ unVarName $ unAnnot $ last fields, expr]
