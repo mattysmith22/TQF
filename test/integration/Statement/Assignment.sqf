@@ -6,4 +6,5 @@ Statement_Assignment_fnc_test2 = {
 Statement_Assignment_fnc_test1 = {
     params ["_arg"];
     _arg = "test";
+    nil;
 };
