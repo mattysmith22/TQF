@@ -12,6 +12,7 @@ import           Control.Monad.State
 import           Data.Either.Extra   (fromRight, mapLeft)
 import           Data.List           (intercalate)
 import qualified Data.Map            as Map
+import           Data.String.Pretty  (Pretty (prettyPrint))
 import           Data.Tuple.Extra    (firstM)
 import           TQF.AST
 import           TQF.AST.Annotated
@@ -70,13 +71,13 @@ addTopLevelDeclToEnv
 addTopLevelDeclToEnv mod env decl = do
     toAdd <- identForDecl mod env (unAnnot decl)
     let env' = either
-            (\(n,x) -> addUIdent (UIdent [] n) x env)
-            (\(n,x) -> addLIdent (LIdent [] n) x env)
+            (\(n,x) -> envAdd (UIdent [] n) x env)
+            (\(n,x) -> envAdd (LIdent [] n) x env)
             toAdd
     return ((snd +++ snd $ toAdd, decl), env')
 
 addTypeParams :: [TypeName] -> Environment -> Environment
-addTypeParams = flip (foldr (\x-> addUIdent (UIdent [] x) (Type.GenericType [] $ Type.extra $ unTypeName x)))
+addTypeParams = flip (foldr (\x-> envAdd (UIdent [] x) (Type.GenericType [] $ Type.extra $ unTypeName x)))
 
 identForDecl :: ResolveableModule -> Environment -> Declaration_ Parsed -> Either EnvError (Either (TypeName, Type.GenericType) (VarName, ModLIdentDecl))
 identForDecl mod env FunctionDecl{..} = do
@@ -161,7 +162,7 @@ resolveDeclaration' env' idnt FunctionDecl{..} = do
         }
     where
         addArgsToEnv :: [(Annot (Type.Type' String), ModLIdentDecl)] -> Environment -> Environment
-        addArgsToEnv args env = foldr ((\n -> addLIdent (LIdent [] $ lIdentName n) n) . snd) env args
+        addArgsToEnv args env = foldr ((\n -> envAdd (LIdent [] $ lIdentName n) n) . snd) env args
 resolveDeclaration' env idnt VariableDecl{..} = do
     typ <- resolveType env variableType
     return VariableDecl
@@ -207,7 +208,7 @@ resolveDeclaration' env idnt ExternalVariableDecl{..} = do
         }
 
 addTypeArgsToEnv :: [TypeName] -> Environment -> Environment
-addTypeArgsToEnv typeArgs env = foldr (\x -> addUIdent (UIdent [] x) $ Type.GenericType [] mempty) env typeArgs
+addTypeArgsToEnv typeArgs env = foldr (\x -> envAdd (UIdent [] x) $ Type.GenericType [] mempty) env typeArgs
 
 createLocalDecl :: Annot (Type.Type' String) -> VarName -> ModLIdentDecl
 createLocalDecl typ var = ModLIdentDecl
@@ -227,7 +228,7 @@ resolveStatement' :: Environment -> Statement_ Parsed -> Either EnvError (Statem
 resolveStatement' env (VariableDeclaration typ name mExpr) = do
     typ' <- resolveType env typ
     resExpr <- traverse (fmap fst . resolveExpr env) mExpr
-    let env' = addLIdent (LIdent [] name) (createLocalDecl typ' name) env
+    let env' = envAdd (LIdent [] name) (createLocalDecl typ' name) env
     return $ (,env') $ VariableDeclaration typ' name resExpr
 resolveStatement' env (Assignment var expr) = do
     var' <- resolveLValue . fst =<< resolveExpr env var
@@ -295,16 +296,16 @@ resolveStmts env exprs = runStateT (traverse f exprs) env
 
 resolveValue :: Range -> Environment -> Ident Parsed -> Either EnvError (Ident Resolved)
 resolveValue r env (Ident lIdent args) = do
-    i <- lookupLIdent r env lIdent
+    i <- envLookup r env lIdent
     args' <- traverse (resolveType env) args
     return $ Ident i args'
 
 resolveType :: Environment -> Annot ParsedType -> Either EnvError (Annot (Type.Type' String))
 resolveType env typ = let
     lookupF (idnt,args) = do
-        genTyp <- lookupUIdent (pos typ) env idnt
+        genTyp <- envLookup (pos typ) env (idnt::UIdent)
         args' <- traverse (resolveType env) args
-        mapLeft (EnvNotFound . Left) $ resolveGenericType (pos typ) genTyp (unAnnot <$> args')
+        mapLeft (EnvNotFound . fmap prettyPrint) $ resolveGenericType (pos typ) genTyp (unAnnot <$> args')
     in Annot (pos typ) <$> Type.resolveType lookupF (unParsedType $ unAnnot typ)
 
 resolveGenericType :: Range -> Type.GenericType -> [Type.Type' String] -> Either (Annot UIdent) (Type.Type' String)

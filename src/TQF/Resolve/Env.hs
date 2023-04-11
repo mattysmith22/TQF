@@ -1,17 +1,15 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE RecordWildCards        #-}
 module TQF.Resolve.Env
     ( Environment(..)
     , CompiledModule(..)
     , EnvError(..)
-    , addUIdent
-    , lookupUIdent
-    , addLIdent
-    , lookupLIdent
+    , envLookup
+    , envAdd
     , emptyEnv
     , importModuleToEnv
     ) where
 
-import           Control.Arrow
 import           Data.Map           (Map)
 import qualified Data.Map           as Map
 import           Data.String.Pretty
@@ -33,32 +31,36 @@ data CanCollide a = NoCollision a
     deriving (Show, Eq)
 
 data EnvError
-    = EnvNotFound (Either (Annot UIdent) (Annot LIdent))
-    | EnvCollision (Either (Annot UIdent) (Annot LIdent))
+    = EnvNotFound (Annot String)
+    | EnvCollision (Annot String)
     | EnvInvalidLvalue (Expr Resolved)
     deriving (Show, Eq)
 
 instance Pretty EnvError where
-    prettyPrint (EnvNotFound x)      = "Not found: " ++ either prettyPrint prettyPrint x
-    prettyPrint (EnvCollision x)     = "Collision: " ++ either prettyPrint prettyPrint x
+    prettyPrint (EnvNotFound x)      = "Not found: " ++ prettyPrint x
+    prettyPrint (EnvCollision x)     = "Collision: " ++ prettyPrint x
     prettyPrint (EnvInvalidLvalue x) = "Invalid lvalue at " ++ prettyPrint (pos x)
 
-unpackLookupError :: Range -> Either UIdent LIdent -> Maybe (CanCollide a) -> Either EnvError a
-unpackLookupError r ident Nothing            = Left $ EnvNotFound $ Annot r +++ Annot r $ ident
-unpackLookupError r ident (Just Collision)   = Left $ EnvCollision $ Annot r +++ Annot r $ ident
+class Ord ident => EnvLookup ident value | ident -> value where
+    envLookupMap :: Environment -> (Map ident (CanCollide value), Map ident (CanCollide value) -> Environment)
+
+instance EnvLookup UIdent GenericType where
+    envLookupMap env = (envUIdents env, \x -> env {envUIdents = x})
+instance EnvLookup LIdent ModLIdentDecl where
+    envLookupMap env = (envLIdents env, \x -> env {envLIdents = x})
+
+unpackLookupError :: Pretty ident => Range -> ident -> Maybe (CanCollide a) -> Either EnvError a
+unpackLookupError r ident Nothing            = Left $ EnvNotFound $ Annot r $ prettyPrint ident
+unpackLookupError r ident (Just Collision)   = Left $ EnvCollision $ Annot r $ prettyPrint ident
 unpackLookupError _ _ (Just (NoCollision x)) = return x
 
-lookupUIdent :: Range -> Environment -> UIdent -> Either EnvError GenericType
-lookupUIdent r Environment{..} uident = unpackLookupError r (Left uident) (Map.lookup uident envUIdents)
+envLookup :: (Pretty ident, EnvLookup ident value) => Range -> Environment -> ident -> Either EnvError value
+envLookup r env ident = unpackLookupError r ident $ Map.lookup ident $ fst $ envLookupMap env
 
-addUIdent :: UIdent -> GenericType -> Environment -> Environment
-addUIdent uident decl env = env { envUIdents = Map.insert uident (NoCollision decl) $ envUIdents env }
-
-lookupLIdent :: Range -> Environment -> LIdent -> Either EnvError ModLIdentDecl
-lookupLIdent r Environment{..} x = unpackLookupError r (Right x) (Map.lookup x envLIdents)
-
-addLIdent :: LIdent -> ModLIdentDecl -> Environment -> Environment
-addLIdent lident decl env = env { envLIdents = Map.insert lident (NoCollision decl) $ envLIdents env }
+envAdd :: EnvLookup ident value => ident -> value -> Environment -> Environment
+envAdd ident value env = setter $ Map.insertWith (const $ const Collision) ident (NoCollision value) curMap
+    where
+        (curMap, setter) = envLookupMap env
 
 importModuleToEnv :: ResolveableModule -> CompiledModule -> Environment -> Environment
 importModuleToEnv prefix CompiledModule{..} Environment{..} = Environment

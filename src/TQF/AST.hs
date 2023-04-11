@@ -38,7 +38,7 @@ module TQF.AST
 
 import           TQF.Type
 
-import           Control.Arrow
+import           Control.Arrow      (Arrow ((***)))
 import           Data.List.Extra    (intercalate, unsnoc)
 import           Data.List.Split    (splitOn)
 import           Data.Maybe         (fromJust)
