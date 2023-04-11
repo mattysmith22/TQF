@@ -1,4 +1,5 @@
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE InstanceSigs           #-}
 {-# LANGUAGE RecordWildCards        #-}
 module TQF.Resolve.Env
     ( Environment(..)
@@ -7,6 +8,7 @@ module TQF.Resolve.Env
     , envLookup
     , envAdd
     , emptyEnv
+    , envCount
     , envNewScope
     , importModuleToEnv
     ) where
@@ -60,6 +62,9 @@ unpackLookupError _ _ (Just (NoCollision x)) = return x
 recLookup :: (Environment -> Maybe a) -> Environment -> Maybe a
 recLookup lookupF env = lookupF env <|> (recLookup lookupF =<< envParent env)
 
+recCount :: (Environment -> Bool) -> Environment -> Int
+recCount f env = (if f env then 1 else 0) + maybe 0 (recCount f) (envParent env)
+
 envLookup :: (Pretty ident, EnvLookup ident value) => Range -> Environment -> ident -> Either EnvError value
 envLookup r env ident = unpackLookupError r ident $ recLookup (Map.lookup ident . fst . envLookupMap) env
 
@@ -67,6 +72,9 @@ envAdd :: EnvLookup ident value => ident -> value -> Environment -> Environment
 envAdd ident value env = setter $ Map.insertWith (const $ const Collision) ident (NoCollision value) curMap
     where
         (curMap, setter) = envLookupMap env
+
+envCount :: EnvLookup ident value => ident -> Environment -> Int
+envCount ident = recCount (Map.member ident . fst . envLookupMap)
 
 envNewScope :: Environment -> Environment
 envNewScope parent = emptyEnv {envParent = Just parent}
@@ -84,6 +92,7 @@ data CompiledModule = CompiledModule
     }
 
 instance Semigroup CompiledModule where
+    (<>) :: CompiledModule -> CompiledModule -> CompiledModule
     l <> r = CompiledModule
         { modUIdents = modUIdents l <> modUIdents r
         , modLIdents = modLIdents l <> modLIdents r

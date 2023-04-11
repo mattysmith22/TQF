@@ -200,12 +200,22 @@ newtype TypeName = TypeName {unTypeName:: String}
 
 data IdentKind = ValueKind | NularCommandKind | UnaryCommandKind | BinaryCommandKind
     deriving (Show, Eq)
-data ModLIdentDecl = ModLIdentDecl
+data ModLIdentDecl
+  = ModLIdentDecl
   { lIdentModule  :: ResolveableModule
   , lIdentName    :: VarName
   , lIdentType    :: GenericType
   , lIdentKind    :: IdentKind
   , lIdentSQFName :: String
+  }
+  | ModLIdentLocal
+  { lIdentName    :: VarName
+  , lIdentType    :: GenericType
+  , lIdentKind    :: IdentKind
+  , lIdentSQFName :: String
+  , lIdentId      :: Int
+    -- ^There may be multiple nested scopes with idents of the same name.
+    -- @lIdentId@ is used to differentiate these as well as lIdentName
   }
   deriving (Show, Eq)
 

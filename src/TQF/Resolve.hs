@@ -13,7 +13,6 @@ import           Data.Either.Extra   (fromRight, mapLeft)
 import           Data.List           (intercalate)
 import qualified Data.Map            as Map
 import           Data.String.Pretty  (Pretty (prettyPrint))
-import           Data.Tuple.Extra    (firstM)
 import           TQF.AST
 import           TQF.AST.Annotated
 import           TQF.Resolve.Env
@@ -151,8 +150,8 @@ resolveDeclaration' :: Environment -> Either Type.GenericType ModLIdentDecl -> D
 resolveDeclaration' env' idnt FunctionDecl{..} = do
     let env = addTypeArgsToEnv functionTypeParams env'
     ret <- resolveType env functionType
-    args <- traverse (fmap (fst &&& uncurry createLocalDecl) . firstM (resolveType env)) functionArguments
-    stmt <- fst <$> resolveStmts (addArgsToEnv args env) functionContent
+    (args,_) <- resolveArgs env functionArguments
+    stmt <- fst <$> resolveBlock (addArgsToEnv args env) functionContent
     return FunctionDecl
         { functionName = fromRight (error "Function returned a type decl") idnt
         , functionType = ret
@@ -180,7 +179,7 @@ resolveDeclaration' env' _ TypeDecl{..} = do
 resolveDeclaration' env' idnt CommandDecl{..} = do
     let env = addTypeArgsToEnv commandTypeParams env'
     ret <- resolveType env commandReturnType
-    args <-traverse (fmap (fst &&& uncurry createLocalDecl) . firstM (resolveType env)) commandArgs
+    (args,_) <- resolveArgs env commandArgs
     return CommandDecl
         { commandName = fromRight (error "Command returned a type decl") idnt
         , commandSQF = commandSQF
@@ -191,7 +190,7 @@ resolveDeclaration' env' idnt CommandDecl{..} = do
 resolveDeclaration' env' idnt ExternalFunctionDecl{..} = do
     let env = addTypeArgsToEnv functionTypeParams env'
     ret <- resolveType env functionType
-    args <- traverse (fmap (fst &&& uncurry createLocalDecl) . firstM (resolveType env)) functionArguments
+    (args,_) <- resolveArgs env functionArguments
     return ExternalFunctionDecl
         { functionName = fromRight (error "External Function returned a type decl") idnt
         , functionType = ret
@@ -207,16 +206,27 @@ resolveDeclaration' env idnt ExternalVariableDecl{..} = do
         , variableSQFName = variableSQFName
         }
 
+resolveArgs
+    :: Environment
+    -> [(Annot ParsedType, VarName)]
+    -> Either EnvError ([(Annot (Type.Type' String), ModLIdentDecl)], Environment)
+resolveArgs env args = runStateT (traverse (\(typ,var) -> do
+        e <- get
+        rtyp <- lift $ resolveType e typ
+        let decl = createLocalDecl e rtyp var
+        put $ envAdd (LIdent [] var) decl env
+        return (rtyp,decl)) args) env
+
 addTypeArgsToEnv :: [TypeName] -> Environment -> Environment
 addTypeArgsToEnv typeArgs env = foldr (\x -> envAdd (UIdent [] x) $ Type.GenericType [] mempty) env typeArgs
 
-createLocalDecl :: Annot (Type.Type' String) -> VarName -> ModLIdentDecl
-createLocalDecl typ var = ModLIdentDecl
-            { lIdentModule = []
-            , lIdentName = var
+createLocalDecl :: Environment -> Annot (Type.Type' String) -> VarName -> ModLIdentDecl
+createLocalDecl env typ var = ModLIdentLocal
+            { lIdentName = var
             , lIdentType = Type.GenericType [] $ unAnnot typ
             , lIdentKind = ValueKind
             , lIdentSQFName = "_" ++ unVarName var
+            , lIdentId = envCount (LIdent [] var) env
             }
 
 resolveStatement :: Environment -> Statement Parsed -> Either EnvError (Statement Resolved, Environment)
@@ -228,7 +238,7 @@ resolveStatement' :: Environment -> Statement_ Parsed -> Either EnvError (Statem
 resolveStatement' env (VariableDeclaration typ name mExpr) = do
     typ' <- resolveType env typ
     resExpr <- traverse (fmap fst . resolveExpr env) mExpr
-    let env' = envAdd (LIdent [] name) (createLocalDecl typ' name) env
+    let env' = envAdd (LIdent [] name) (createLocalDecl env typ' name) env
     return $ (,env') $ VariableDeclaration typ' name resExpr
 resolveStatement' env (Assignment var expr) = do
     var' <- resolveLValue . fst =<< resolveExpr env var
@@ -276,16 +286,16 @@ resolveExpr' env (UnOp op x) =
     (,env) . UnOp op . fst <$> resolveExpr env x
 resolveExpr' env (IfStatement cond stmts) = do
     (cond', env') <- resolveExpr env cond
-    stmts' <- traverse (fmap fst . resolveStmts env') stmts
+    stmts' <- traverse (fmap fst . resolveBlock env') stmts
     return $ (,env) $ IfStatement cond' stmts'
 resolveExpr' env (WhileLoop cond stmt) = do
     (cond', env') <- resolveExpr env cond
-    stmt' <- fst <$> resolveStmts env' stmt
+    stmt' <- fst <$> resolveBlock env' stmt
     return (WhileLoop cond' stmt', env)
 resolveExpr' env NilLit = return (NilLit, env)
 
-resolveStmts :: Environment -> [Statement Parsed] -> Either EnvError ([Statement Resolved], Environment)
-resolveStmts env exprs = runStateT (traverse f exprs) env
+resolveBlock :: Environment -> [Statement Parsed] -> Either EnvError ([Statement Resolved], Environment)
+resolveBlock env exprs = runStateT (traverse f exprs) $ envNewScope env
     where
         f :: Statement Parsed -> StateT Environment (Either EnvError) (Statement Resolved)
         f stmt = do
