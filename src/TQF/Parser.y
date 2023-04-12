@@ -150,23 +150,23 @@ TypeRecordField :: { (String, ParsedType) }
     : LIdentSimple ':' Type { (unVarName $ unAnnot $1, unAnnot $3) }
 
 Declaration :: { Declaration Parsed }
-    : function LIdentSimple TypeParamsDecl '(' FunctionDeclArguments ')' ':' Type CodeBlock { Annot (pos $1 <> pos $9) $ FunctionDecl (unAnnot $2) $8 $3 $5 (unAnnot $9) }
-    | type UIdentSimple TypeParamsDecl '=' Type { Annot (pos $1 <> pos $5) $ TypeDecl (unAnnot $2) $3 $5 }
-    | global LIdentSimple ':' Type { Annot (pos $1 <> pos $4) $ VariableDecl $4 (unAnnot $2) }
-    | command LIdentSimple TypeParamsDecl '(' FunctionDeclArguments ')' ':' Type '=' String { Annot (pos $1 <> pos $10) $ CommandDecl (unAnnot $10) (unAnnot $2) $3 $8 $5 }
-    | external function LIdentSimple TypeParamsDecl '(' FunctionDeclArguments ')' ':' Type '=' String { Annot (pos $1 <> pos $10) $ ExternalFunctionDecl (unAnnot $3) $9 $4 $6 (unAnnot $11) }
-    | external LIdentSimple ':' Type '=' String { Annot (pos $1 <> pos $6) $ ExternalVariableDecl (unAnnot $2) $4 (unAnnot $6) }
+    : function LIdentSimple TypeParamsDecl '(' FunctionDeclArguments ')' ':' Type CodeBlock { Annot (pos $1 <> pos $9) $ FunctionDecl $2 $8 $3 $5 (unAnnot $9) }
+    | type UIdentSimple TypeParamsDecl '=' Type { Annot (pos $1 <> pos $5) $ TypeDecl $2 $3 $5 }
+    | global LIdentSimple ':' Type { Annot (pos $1 <> pos $4) $ VariableDecl $4 $2 }
+    | command LIdentSimple TypeParamsDecl '(' FunctionDeclArguments ')' ':' Type '=' String { Annot (pos $1 <> pos $10) $ CommandDecl (unAnnot $10) $2 $3 $8 $5 }
+    | external function LIdentSimple TypeParamsDecl '(' FunctionDeclArguments ')' ':' Type '=' String { Annot (pos $1 <> pos $10) $ ExternalFunctionDecl $3 $9 $4 $6 (unAnnot $11) }
+    | external LIdentSimple ':' Type '=' String { Annot (pos $1 <> pos $6) $ ExternalVariableDecl $2 $4 (unAnnot $6) }
 
-TypeParamsDecl :: { [TypeName] }
+TypeParamsDecl :: { [Annot TypeName] }
 TypeParamsDecl
     : {- empty -} {[]}
     | '<' TypeParamArgsDecl '>' {$2}
 
-TypeParamArgsDecl :: { [TypeName] }
+TypeParamArgsDecl :: { [Annot TypeName] }
 TypeParamArgsDecl
     : {- empty -} {[]}
-    | UIdentSimple {[unAnnot $1]}
-    | UIdentSimple ',' TypeParamArgsDecl {unAnnot $1 : $3}
+    | UIdentSimple {[$1]}
+    | UIdentSimple ',' TypeParamArgsDecl {$1 : $3}
 
 TypeParams :: { [Annot ParsedType] }
 TypeParams
@@ -180,13 +180,13 @@ TypeParamArgs
     | Type ',' TypeParamArgs {$1 : $3}
 
 
-FunctionDeclArguments :: { [(Annot ParsedType, VarName)] }
+FunctionDeclArguments :: { [(Annot ParsedType, Annot VarName)] }
     : {- empty -} {[]}
     | FunctionDeclArgument {[$1]}
     | FunctionDeclArgument ',' FunctionDeclArguments {$1:$3}
 
-FunctionDeclArgument :: { (Annot ParsedType, VarName) }
-    : LIdentSimple ':' Type {($3, unAnnot $1)}
+FunctionDeclArgument :: { (Annot ParsedType, Annot VarName) }
+    : LIdentSimple ':' Type {($3, $1)}
 
 CodeBlock :: { Annot [Statement Parsed] }
     : '{' Statements '}' {Annot (pos $1 <> pos $3) $2}
@@ -204,7 +204,7 @@ MElse :: { Annot (Maybe [Statement Parsed]) }
     | else CodeBlock { Annot (pos $1 <> pos $2) $ Just (unAnnot $2) }
 
 Statement :: { Statement Parsed }
-    : var LIdentSimple ':' Type VariableDeclarationAssignment {Annot ((pos $1 <> pos $4) <> fromMaybe NoPlace (fmap pos $5)) $ VariableDeclaration $4 (unAnnot $2) $5}
+    : var LIdentSimple ':' Type VariableDeclarationAssignment {Annot ((pos $1 <> pos $4) <> fromMaybe NoPlace (fmap pos $5)) $ VariableDeclaration $4 $2 $5}
     | Expr '=' Expr {Annot (pos $1 <> pos $3) $ Assignment $1 $3}
     | Expr { Annot (pos $1) $ Expr $1 }
 

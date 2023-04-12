@@ -1,0 +1,9 @@
+module Statement.Assignment.DoubleDeclarationNested where
+
+-- Variable declaration
+function test1(): nil {
+    var x: num = 1;
+    if (x == 1) then {
+        var x: string = "test";
+    };
+}

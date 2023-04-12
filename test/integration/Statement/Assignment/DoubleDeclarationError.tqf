@@ -1,0 +1,7 @@
+module Statement.Assignment.DoubleDeclarationError where
+
+-- Variable declaration
+function test1(): nil {
+    var x: num = 1;
+    var x: string = "test";
+}

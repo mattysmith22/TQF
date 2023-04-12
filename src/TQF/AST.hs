@@ -57,8 +57,8 @@ type family LIdentF a where
   LIdentF Resolved = ModLIdentDecl
 
 type family DeclIdentF a where
-  DeclIdentF Parsed = VarName
-  DeclIdentF Resolved = ModLIdentDecl
+  DeclIdentF Parsed = Annot VarName
+  DeclIdentF Resolved = Annot ModLIdentDecl
 
 type family LValueF a where
   LValueF Parsed = Expr Parsed
@@ -87,26 +87,26 @@ type Declaration a = Annot (Declaration_ a)
 data Declaration_ a = FunctionDecl
   { functionName       :: DeclIdentF a
   , functionType       :: TypeDeclF a
-  , functionTypeParams :: [TypeName]
+  , functionTypeParams :: [Annot TypeName]
   , functionArguments  :: [(TypeDeclF a, DeclIdentF a)]
   , functionContent    :: [Statement a]
   } | VariableDecl
   { variableType :: TypeDeclF a
   , variableName :: DeclIdentF a
   } | TypeDecl
-  { typeName   :: TypeName
-  , typeParams :: [TypeName]
+  { typeName   :: Annot TypeName
+  , typeParams :: [Annot TypeName]
   , typeValue  :: TypeDeclF a
   } | CommandDecl
   { commandSQF        :: String
   , commandName       :: DeclIdentF a
-  , commandTypeParams :: [TypeName]
+  , commandTypeParams :: [Annot TypeName]
   , commandReturnType :: TypeDeclF a
   , commandArgs       :: [(TypeDeclF a, DeclIdentF a)]
   } | ExternalFunctionDecl
   { functionName       :: DeclIdentF a
   , functionType       :: TypeDeclF a
-  , functionTypeParams :: [TypeName]
+  , functionTypeParams :: [Annot TypeName]
   , functionArguments  :: [(TypeDeclF a, DeclIdentF a)]
   , functionSQFName    :: String
   } | ExternalVariableDecl
@@ -121,7 +121,7 @@ deriving instance ValidASTLevel a => Eq (Declaration_ a)
 type Statement a = Annot (Statement_ a)
 
 data Statement_ a
-  = VariableDeclaration (TypeDeclF a) VarName (Maybe (Expr a))
+  = VariableDeclaration (TypeDeclF a) (DeclIdentF a) (Maybe (Expr a))
   | Assignment (LValueF a) (Expr a)
   | Expr (Expr a)
 

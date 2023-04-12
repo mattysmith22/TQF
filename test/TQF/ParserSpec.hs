@@ -53,55 +53,55 @@ declarationSpec :: SpecWith ()
 declarationSpec = do
   it "Should parse a function declaration" $ do
     "function functionName(input: nil): string {}"
-      `shouldParse` [ a $ FunctionDecl (l "functionName")
+      `shouldParse` [ a $ FunctionDecl (a $ l "functionName")
                                    (a $ ParsedType $ simpleType String)
                                    []
-                                   [(a $ ParsedType $ simpleType Nil, l "input")]
+                                   [(a $ ParsedType $ simpleType Nil, a $ l "input")]
                                    []
                     ]
   it "Should parse a function declaration with namespaced types" $ do
     "function functionName(input: NS.Void): NS.String {}"
-      `shouldParse` [ a $ FunctionDecl (l "functionName")
+      `shouldParse` [ a $ FunctionDecl (a $ l "functionName")
                                    (a $ ParsedType $ extra (UIdent [u "NS"] (u "String"), []))
                                    []
-                                   [(a $ ParsedType $ extra (UIdent [u "NS"] (u "Void"), []), l "input")]
+                                   [(a $ ParsedType $ extra (UIdent [u "NS"] (u "Void"), []), a $ l "input")]
                                    []
                     ]
   it "Should parse a function declaration with multiple arguments" $ do
     "function functionName(input: nil, input2: num): string {}"
       `shouldParse` [ a $ FunctionDecl
-                        (l "functionName")
+                        (a $ l "functionName")
                         (a $ ParsedType $ simpleType String)
                         []
-                        [(a $ ParsedType $ simpleType Nil, l "input"), (a $ ParsedType $ simpleType Number, l "input2")]
+                        [(a $ ParsedType $ simpleType Nil, a $ l "input"), (a $ ParsedType $ simpleType Number, a $ l "input2")]
                         []
                     ]
   it "Should parse multiple function declarations"
     $             "function functionName(input: nil): string {} function functionName2(input2: string): num {}"
-    `shouldParse` [ a $ FunctionDecl (l "functionName")
+    `shouldParse` [ a $ FunctionDecl (a $ l "functionName")
                                  (a $ ParsedType $ simpleType String)
                                  []
-                                 [(a $ ParsedType $ simpleType Nil, l "input")]
+                                 [(a $ ParsedType $ simpleType Nil, a $ l "input")]
                                  []
-                  , a $ FunctionDecl (l "functionName2")
+                  , a $ FunctionDecl (a $ l "functionName2")
                                  (a $ ParsedType $ simpleType Number)
                                  []
-                                 [(a $ ParsedType $ simpleType String, l "input2")]
+                                 [(a $ ParsedType $ simpleType String, a $ l "input2")]
                                  []
                   ]
   it "Should parse an external function declarations"
     $ "external function functionName(input: nil, input2: num): bool = \"test\""
     `shouldParse` [ a $ ExternalFunctionDecl
-        (l "functionName")
+        (a $ l "functionName")
         (a $ ParsedType $ simpleType Bool)
         []
-        [(a $ ParsedType $ simpleType Nil, l "input"), ( a $ ParsedType $ simpleType Number, l "input2")]
+        [(a $ ParsedType $ simpleType Nil, a $ l "input"), ( a $ ParsedType $ simpleType Number, a $ l "input2")]
         "test"
         ]
   it "Should parse an external variable declaration"
     $ "external varName: string = \"test\""
     `shouldParse` [ a $ ExternalVariableDecl
-        (l "varName")
+        (a $ l "varName")
         ( a $ ParsedType $ simpleType String)
         "test"
         ]
@@ -114,10 +114,10 @@ statementSpec = do
   describe "Variable Declarations" $ do
     it "Should parse a variable declaration without an assignment"
       $             "var varName: Type;"
-      `shouldParse` [a $ VariableDeclaration (a $ ParsedType $ extra $ (,[]) $ typN' [] "Type") (l "varName") Nothing]
+      `shouldParse` [a $ VariableDeclaration (a $ ParsedType $ extra $ (,[]) $ typN' [] "Type") (a $ l "varName") Nothing]
     it "Should parse a variable declaration with an assignment"
       $             "var varName: Type = 1;"
-      `shouldParse` [a $ VariableDeclaration ( a $ ParsedType $ extra $ (,[]) $ typN' [] "Type") (l "varName") (Just $ a $ NumLiteral 1)]
+      `shouldParse` [a $ VariableDeclaration ( a $ ParsedType $ extra $ (,[]) $ typN' [] "Type") (a $ l "varName") (Just $ a $ NumLiteral 1)]
   describe "Assignment"
     $             it "Should parse an assignment"
     $             "varName = 1;"
@@ -128,7 +128,7 @@ statementSpec = do
       `shouldBe` Right
                    (Module [u "Test"]
                            []
-                           [a $ FunctionDecl (l "func") (a $ ParsedType $ simpleType Nil) [] [] ast]
+                           [a $ FunctionDecl (a $ l "func") (a $ ParsedType $ simpleType Nil) [] [] ast]
                    )
 
 expressionSpec :: SpecWith ()
@@ -226,7 +226,7 @@ expressionSpec = do
                      [u "Test"]
                      []
                      [a $ FunctionDecl
-                                    (l "func")
+                                    (a $ l "func")
                                     (a $ ParsedType $ simpleType Nil)
                                     []
                                     []

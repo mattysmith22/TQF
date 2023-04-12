@@ -68,8 +68,10 @@ recCount f env = (if f env then 1 else 0) + maybe 0 (recCount f) (envParent env)
 envLookup :: (Pretty ident, EnvLookup ident value) => Range -> Environment -> ident -> Either EnvError value
 envLookup r env ident = unpackLookupError r ident $ recLookup (Map.lookup ident . fst . envLookupMap) env
 
-envAdd :: EnvLookup ident value => ident -> value -> Environment -> Environment
-envAdd ident value env = setter $ Map.insertWith (const $ const Collision) ident (NoCollision value) curMap
+envAdd :: (Pretty ident, EnvLookup ident value) => Annot ident -> value -> Environment -> Either EnvError Environment
+envAdd ident value env
+    | Map.member (unAnnot ident) curMap = Left $ EnvCollision $ fmap prettyPrint ident
+    | otherwise = return $ setter $ Map.insert (unAnnot ident) (NoCollision value) curMap
     where
         (curMap, setter) = envLookupMap env
 

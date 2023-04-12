@@ -20,8 +20,8 @@ codeGenDecl decl = unAnnot $ codeGenDecl' <$> decl
 
 codeGenDecl' :: Declaration_ Resolved -> [SQF 'SStmt]
 codeGenDecl' FunctionDecl{..} = let
-    functionPath = lIdentSQFName functionName
-    paramsStatement = SQF.UnOp "params" $ SQF.Array $ fmap (SQF.StringLit . lIdentSQFName . snd) functionArguments
+    functionPath = lIdentSQFName $ unAnnot functionName
+    paramsStatement = SQF.UnOp "params" $ SQF.Array $ fmap (SQF.StringLit . lIdentSQFName . unAnnot . snd) functionArguments
     in [SQF.Assign SQF.NoPrivate functionPath $ codeGenCodeBlock' [paramsStatement] functionContent]
 codeGenDecl' _ = []
 
@@ -44,8 +44,8 @@ codeGenStmt :: Statement Resolved -> SQF 'SStmt
 codeGenStmt stmt = unAnnot $ f <$> stmt
     where
         f (VariableDeclaration _ idnt mval) = case mval of
-            Nothing     -> SQF.UnOp "private" $ SQF.StringLit ("_" ++ unVarName idnt)
-            (Just expr) -> SQF.Assign SQF.Private ("_" ++ unVarName idnt) (codeGenExpr expr)
+            Nothing     -> SQF.UnOp "private" $ SQF.StringLit (lIdentSQFName $ unAnnot idnt)
+            (Just expr) -> SQF.Assign SQF.Private (lIdentSQFName $ unAnnot idnt) (codeGenExpr expr)
         f (Assignment (LValueVar ident) expr)
             = SQF.Assign SQF.NoPrivate (lIdentSQFName $ identName $ unAnnot ident) $ codeGenExpr expr
         f (Assignment (LValueField lexpr field) rexpr)
