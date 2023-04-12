@@ -234,7 +234,7 @@ Expr :: { Expr Parsed }
     | '!' Expr {Annot (pos $1 <> pos $2) $ UnOp (Annot (pos $1) NotOp) $2}
     | '-' Expr %prec NEG {Annot (pos $1 <> pos $2) $ UnOp (Annot (pos $1) NegOp) $2}
     | ParsedValue {Annot (pos $1) $ Variable $1}
-    | ParsedValue '(' ExprList ')' {Annot (pos $1 <> pos $4) $ FuncCall $1 $3}
+    | Expr '(' ExprList ')' {Annot (pos $1 <> pos $4) $ FuncCall $1 $3}
     | Bool {fmap BoolLiteral $1}
     | Num {fmap NumLiteral $1}
     | String {fmap StringLiteral $1}

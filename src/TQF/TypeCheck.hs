@@ -71,7 +71,7 @@ typeCheckLValue (LValueField expr field@(Annot r _)) = typeCheckExpr (Annot r (F
 typeCheckExpr :: Expr Resolved -> T (Annot Type)
 typeCheckExpr (Annot _ (Variable x)) = typeCheckLIdent x
 typeCheckExpr (Annot r (FuncCall f args)) = do
-    func <- typeCheckLIdent f
+    func <- typeCheckExpr f
     args' <- traverse typeCheckExpr args
     lift $ left (\(s,l) -> NotWithin (Annot (pos func) s) (Annot (foldMap pos args) l)) $ right (Annot r) $ validateFuncCall (unAnnot func) (unAnnot <$> args')
 typeCheckExpr (Annot r (BoolLiteral x)) = return $ Annot r (constBool x)

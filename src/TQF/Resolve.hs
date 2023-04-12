@@ -264,8 +264,9 @@ resolveExpr env x = do
 resolveExpr' :: Environment -> Expr_ Parsed -> Either EnvError (Expr_ Resolved, Environment)
 resolveExpr' env (Variable x) =
     (,env) . Variable <$> traverse (resolveValue (pos x) env) x
-resolveExpr' env (FuncCall n args) =
-    fmap (,env) $ FuncCall <$> traverse (resolveValue (pos n) env) n <*> traverse (fmap fst . resolveExpr env) args
+resolveExpr' env (FuncCall n args) = do
+    (n',env') <- resolveExpr env n
+    fmap (,env') $ FuncCall n' <$> traverse (fmap fst . resolveExpr env) args
 resolveExpr' env (BoolLiteral x) =
     return (BoolLiteral x, env)
 resolveExpr' env (NumLiteral x) =

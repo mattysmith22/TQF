@@ -179,7 +179,7 @@ expressionSpec = do
       "1<=2" `shouldParse` BinOp (a LessEqualOp) (a $ NumLiteral 1) (a $ NumLiteral 2)
   describe "FunctionDecl calls" $ do
     it "Should parse a function call" $ "func(1, 2)" `shouldParse` FuncCall
-      ( a $ Ident (varN' [] "func") [])
+      ( a $ Variable $  a $ Ident (varN' [] "func") [])
       [ a $ NumLiteral 1, a $ NumLiteral 2]
   describe "Array construction" $ do
     it "Should parse an empty array" $ "[]" `shouldParse` ArrayExpr []

@@ -129,7 +129,7 @@ type Expr a = Annot (Expr_ a)
 
 data Expr_ a
   = Variable (Annot (Ident a))
-  | FuncCall (Annot (Ident a)) [Expr a]
+  | FuncCall (Expr a) [Expr a]
   | BoolLiteral Bool
   | UnOp (Annot UnaryOperator) (Expr a)
   | BinOp (Annot BinaryOperator) (Expr a) (Expr a)

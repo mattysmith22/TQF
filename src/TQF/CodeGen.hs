@@ -82,7 +82,7 @@ codeGenExpr x = f $ unAnnot x
                 loopExpr = codeGenCodeBlock stmt
             in SQF.BinOp "do" (SQF.UnOp "while" (SQF.CodeBlock [SQF.forceStmt $ codeGenExpr cond])) loopExpr
         f (Variable lIdent) = getIdent $ unAnnot lIdent
-        f (FuncCall lIdent args) = SQF.BinOp "call" (SQF.Array $ codeGenExpr <$> args) (getIdent $ unAnnot lIdent)
+        f (FuncCall expr args) = SQF.BinOp "call" (SQF.Array $ codeGenExpr <$> args) (codeGenExpr expr)
         f (BoolLiteral x) = SQF.BoolLit x
         f (NumLiteral x) = SQF.NumLit x
         f (StringLiteral x) = SQF.StringLit x
