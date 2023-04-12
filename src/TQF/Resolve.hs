@@ -218,7 +218,7 @@ resolveArgs env args = runStateT (traverse (\(typ,var) -> do
         return (rtyp,Annot (pos var) decl)) args) env
 
 addTypeArgsToEnv :: [Annot TypeName] -> Environment -> Either EnvError Environment
-addTypeArgsToEnv typeArgs env = foldrM (\x -> envAdd (UIdent [] <$> x) $ Type.GenericType [] mempty) env typeArgs
+addTypeArgsToEnv typeArgs env = foldrM (\x -> envAdd (UIdent [] <$> x) $ Type.GenericType [] $ Type.extra $ unTypeName $ unAnnot x) env typeArgs
 
 createLocalDecl :: Environment -> Annot (Type.Type' String) -> VarName -> ModLIdentDecl
 createLocalDecl env typ var = ModLIdentLocal

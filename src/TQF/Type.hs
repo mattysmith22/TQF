@@ -31,6 +31,7 @@ module TQF.Type
     , validateFuncCall
     , validateBinOp
     , validateUnOp
+    , runInference
     ) where
 
 import           Control.Monad         (unless)
@@ -56,7 +57,11 @@ data Type' a
 
 type Type = Type' String
 
-data GenericType = GenericType [String] (Type' String)
+data GenericType
+    = GenericType
+    { genTypeArgs    :: [String]
+    , genTypeContent :: Type' String
+    }
     deriving (Show, Eq)
 
 instance Ord a => Within (Type' a) where
@@ -418,3 +423,24 @@ instance Pretty Type where
             showBaseTypePretty (CodeType args ret) = "(" ++ intercalate "," (fmap prettyPrint args) ++ ") -> " ++ prettyPrint ret
             showBaseTypePretty (RecordType fields) = "{" ++ intercalate ", " ((\(k,v) -> k ++ ": " ++ prettyPrint v) <$> Map.toList fields) ++ "}"
             showBaseTypePretty (ExtraType x) = x
+
+runInference :: (Ord a, Ord b) => Type' a -> Type' b -> Map a (Type' b)
+runInference l r = Map.fromListWith (<>) $ runInference' l r
+
+runInference' :: Type' a -> Type' b -> [(a, Type' b)]
+runInference' Top _ = []
+runInference' _ Top = []
+runInference' (Options ls) (Options rs) = concatMap (uncurry runInferenceBase) $ Set.cartesianProduct ls rs
+    where
+        runInferenceBase :: BaseType a -> BaseType b -> [(a, Type' b)]
+        runInferenceBase (SimpleType _) _ = []
+        runInferenceBase (ConstType _) _ = []
+        runInferenceBase (ArrayType lt) (ArrayType rt) = runInference' lt rt
+        runInferenceBase (ArrayType _) _ = []
+        runInferenceBase (TupleType ls) (TupleType rs) = concat $ zipWith runInference' ls rs
+        runInferenceBase (TupleType _) _ = []
+        runInferenceBase (CodeType largs lret) (CodeType rargs rret) = concat (zipWith runInference' largs rargs) ++ runInference' lret rret
+        runInferenceBase (CodeType _ _) _ = []
+        runInferenceBase (RecordType lrec) (RecordType rrec) = concatMap (uncurry runInference') $ Map.intersectionWith (,) lrec rrec
+        runInferenceBase (RecordType _) _ = []
+        runInferenceBase (ExtraType a) x = [(a, Options $ Set.singleton x)]

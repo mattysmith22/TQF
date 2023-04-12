@@ -16,3 +16,12 @@ function main(): nil {
     var array1: [num] = [1,2,3];
     systemChat(str<num>(count<num>(array1)));
 }
+
+function countOfSomethingInferred<T>(x:ArrayOfSomething<T>): num {
+    count(x.theArray);
+}
+
+function mainInferred(): nil {
+    var array1: [num] = [1,2,3];
+    systemChat(str(count(array1)));
+}
