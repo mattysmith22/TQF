@@ -16,6 +16,7 @@ import           TQF.Resolve               (resolveGenericType)
 import           TQF.Type                  (SimpleType (Bool, Nil, Number, String), Type, Type', array, constBool,
                                             constNumber, constString, isWithin, lookupField, simpleType, tuple,
                                             validateBinOp, validateFuncCall, validateUnOp)
+import           TQF.TypeCheck.Facts
 import           TQF.TypeCheck.Monad
 
 data TypeCheckErr = NotWithin (Annot (Type' String)) (Annot (Type' String))
@@ -26,7 +27,7 @@ data TypeCheckErr = NotWithin (Annot (Type' String)) (Annot (Type' String))
      | NotFound (Annot UIdent)
      deriving (Show, Eq)
 
-type T a = TypeCheck () (Type' String) (Either TypeCheckErr) a
+type T a = TypeCheck Facts (Type' String) (Either TypeCheckErr) a
 
 instance Pretty TypeCheckErr where
     prettyPrint (NotWithin l r) = "type\n" ++ prettyPrint l ++ "\nis not within type\n" ++ prettyPrint r
@@ -137,5 +138,7 @@ typeCheckBlock stmts
     <$> block (foldMapM (fmap (Last . Just) . typeCheckStmt) stmts)
 
 typeCheckLIdent :: Annot (Ident Resolved) -> T (Annot Type)
-typeCheckLIdent (Annot r (Ident i args)) = lift $
-    fmap (Annot r) $ mapLeft NotFound $ resolveGenericType r (lIdentType i) (unAnnot <$> args)
+typeCheckLIdent (Annot r i) = do
+    facts <- curFacts
+    let i' = resolveIdentType facts i
+    lift $ fmap (Annot r) $ mapLeft NotFound $ resolveGenericType r (lIdentType $ identName i') (unAnnot <$> identTypeArgs i')
