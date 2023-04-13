@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds      #-}
 {-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE DeriveFunctor        #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE StandaloneDeriving   #-}
@@ -14,6 +15,7 @@ module TQF.AST
   , Statement_(..)
   , Expr
   , Expr_(..)
+  , ExprF(..)
   , IfTrue(..)
   , Ident(..)
   , BinaryOperator(..)
@@ -37,10 +39,11 @@ module TQF.AST
 
 import           TQF.Type
 
-import           Control.Arrow      (Arrow ((***)))
-import           Data.List.Extra    (unsnoc)
-import           Data.List.Split    (splitOn)
-import           Data.Maybe         (fromJust)
+import           Control.Arrow         (Arrow ((***)))
+import           Data.Functor.Foldable
+import           Data.List.Extra       (unsnoc)
+import           Data.List.Split       (splitOn)
+import           Data.Maybe            (fromJust)
 import           Data.String.Pretty
 import           TQF.AST.Annotated
 import           TQF.Types
@@ -128,6 +131,41 @@ data Expr_ a
   | IfStatement (Expr a) (IfTrue [Statement a])
   | WhileLoop (Expr a) [Statement a]
   | NilLit
+
+data ExprF a block e
+  = VariableF (Annot (Ident a))
+  | FuncCallF (Annot e) [Annot e]
+  | BoolLiteralF Bool
+  | UnOpF (Annot UnaryOperator) (Annot e)
+  | BinOpF (Annot BinaryOperator) (Annot e) (Annot e)
+  | NumLiteralF Double
+  | StringLiteralF String
+  | ArrayExprF [Annot e]
+  | CastF (Annot (TypeDeclF a)) (Annot e)
+  | TupleF [Annot e]
+  | FieldAccessF (Annot e) (Annot VarName)
+  | IfStatementF (Annot e) (IfTrue block)
+  | WhileLoopF (Annot e) block
+  | NilLitF
+  deriving Functor
+
+type instance Base (Expr_ a) = ExprF a [Statement a]
+
+instance Recursive (Expr_ a) where
+    project (Variable x)      = VariableF x
+    project (FuncCall x as)   = FuncCallF x as
+    project (BoolLiteral x)   = BoolLiteralF x
+    project (UnOp a b)        = UnOpF a b
+    project (BinOp a b c)     = BinOpF a b c
+    project (NumLiteral x)    = NumLiteralF x
+    project (StringLiteral x) = StringLiteralF x
+    project (ArrayExpr xs)    = ArrayExprF xs
+    project (Cast a b)        = CastF a b
+    project (Tuple a)         = TupleF a
+    project (FieldAccess a b) = FieldAccessF a b
+    project (IfStatement a b) = IfStatementF a b
+    project (WhileLoop a b)   = WhileLoopF a b
+    project NilLit            = NilLitF
 
 data IfTrue a
   = ThenDo a (Maybe a)

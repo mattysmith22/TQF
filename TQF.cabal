@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9e5846fa012267adefc8134481df1e94354e3d4f74eb3f0eb2134bf1cb3ab0de
+-- hash: 6c7992e23c51a526e04b2a63bd4424fa4d1e4b2dd92a2798a658173ec65800c9
 
 name:           TQF
 version:        0.1.0.0
@@ -60,10 +60,12 @@ library
     , base >=4.7 && <5
     , bimap
     , containers
+    , data-fix
     , errors
     , extra
     , filepath
     , mtl
+    , recursion-schemes
     , safe
     , split
     , transformers
@@ -86,6 +88,7 @@ executable TQF-exe
     , base >=4.7 && <5
     , bimap
     , containers
+    , data-fix
     , errors
     , extra
     , filemanip
@@ -93,6 +96,7 @@ executable TQF-exe
     , mtl
     , optparse-applicative
     , pretty-simple
+    , recursion-schemes
     , safe
     , split
     , transformers
@@ -122,12 +126,14 @@ test-suite TQF-test
     , base >=4.7 && <5
     , bimap
     , containers
+    , data-fix
     , dir-traverse
     , errors
     , extra
     , filepath
     , hspec
     , mtl
+    , recursion-schemes
     , safe
     , split
     , transformers

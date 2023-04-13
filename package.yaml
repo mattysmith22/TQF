@@ -32,6 +32,8 @@ dependencies:
 - bimap
 - QuickCheck
 - filepath
+- recursion-schemes
+- data-fix
 
 build-tools:
 - alex
