@@ -13,9 +13,9 @@ import           TQF.Type
 
 data Resolved
 
-type instance TypeDeclF Resolved = Annot Type
+type instance TypeDeclF Resolved = Type
 type instance LIdentF Resolved = ModLIdentDecl
-type instance DeclIdentF Resolved = Annot ModLIdentDecl
+type instance DeclIdentF Resolved = ModLIdentDecl
 type instance LValueF Resolved = LValue Resolved
 
 data LValue a

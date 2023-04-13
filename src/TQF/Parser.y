@@ -304,8 +304,8 @@ newtype ParsedType = ParsedType { unParsedType :: Type.Type' (UIdent, [Annot Par
 instance Semigroup ParsedType where
   l <> r = ParsedType $ unParsedType l <> unParsedType r
 
-type instance TypeDeclF Parsed = Annot ParsedType
+type instance TypeDeclF Parsed = ParsedType
 type instance LIdentF Parsed = LIdent
-type instance DeclIdentF Parsed = Annot VarName
+type instance DeclIdentF Parsed = VarName
 type instance LValueF Parsed = Expr Parsed
 }

@@ -50,7 +50,7 @@ type family LIdentF a :: *
 type family DeclIdentF a :: *
 type family LValueF a :: *
 
-type ValidASTLevel a = (Show (DeclIdentF a), Eq (DeclIdentF a), Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a), Show(LValueF a), Eq (LValueF a))
+type ValidASTLevel a = (Show (Annot (DeclIdentF a)), Eq (Annot (DeclIdentF a)), Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a), Show(LValueF a), Eq (LValueF a))
 
 data Module a = Module
   { moduleName         :: ResolveableModule
@@ -71,33 +71,33 @@ data ImportStatement = ImportStatement
 type Declaration a = Annot (Declaration_ a)
 
 data Declaration_ a = FunctionDecl
-  { functionName       :: DeclIdentF a
-  , functionType       :: TypeDeclF a
+  { functionName       :: Annot (DeclIdentF a)
+  , functionType       :: Annot (TypeDeclF a)
   , functionTypeParams :: [Annot TypeName]
-  , functionArguments  :: [(TypeDeclF a, DeclIdentF a)]
+  , functionArguments  :: [(Annot (TypeDeclF a), Annot (DeclIdentF a))]
   , functionContent    :: [Statement a]
   } | VariableDecl
-  { variableType :: TypeDeclF a
-  , variableName :: DeclIdentF a
+  { variableType :: Annot (TypeDeclF a)
+  , variableName :: Annot (DeclIdentF a)
   } | TypeDecl
   { typeName   :: Annot TypeName
   , typeParams :: [Annot TypeName]
-  , typeValue  :: TypeDeclF a
+  , typeValue  :: Annot (TypeDeclF a)
   } | CommandDecl
   { commandSQF        :: String
-  , commandName       :: DeclIdentF a
+  , commandName       :: Annot (DeclIdentF a)
   , commandTypeParams :: [Annot TypeName]
-  , commandReturnType :: TypeDeclF a
-  , commandArgs       :: [(TypeDeclF a, DeclIdentF a)]
+  , commandReturnType :: Annot (TypeDeclF a)
+  , commandArgs       :: [(Annot (TypeDeclF a), Annot (DeclIdentF a))]
   } | ExternalFunctionDecl
-  { functionName       :: DeclIdentF a
-  , functionType       :: TypeDeclF a
+  { functionName       :: Annot (DeclIdentF a)
+  , functionType       :: Annot (TypeDeclF a)
   , functionTypeParams :: [Annot TypeName]
-  , functionArguments  :: [(TypeDeclF a, DeclIdentF a)]
+  , functionArguments  :: [(Annot (TypeDeclF a), Annot (DeclIdentF a))]
   , functionSQFName    :: String
   } | ExternalVariableDecl
-  { variableName    :: DeclIdentF a
-  , variableType    :: TypeDeclF a
+  { variableName    :: Annot (DeclIdentF a)
+  , variableType    :: Annot (TypeDeclF a)
   , variableSQFName :: String
   }
 
@@ -107,7 +107,7 @@ deriving instance ValidASTLevel a => Eq (Declaration_ a)
 type Statement a = Annot (Statement_ a)
 
 data Statement_ a
-  = VariableDeclaration (TypeDeclF a) (DeclIdentF a) (Maybe (Expr a))
+  = VariableDeclaration (Annot (TypeDeclF a)) (Annot (DeclIdentF a)) (Maybe (Expr a))
   | Assignment (LValueF a) (Expr a)
   | Expr (Expr a)
 
@@ -122,7 +122,7 @@ data Expr_ a
   | NumLiteral Double
   | StringLiteral String
   | ArrayExpr [Expr a]
-  | Cast (TypeDeclF a) (Expr a)
+  | Cast (Annot (TypeDeclF a)) (Expr a)
   | Tuple [Expr a]
   | FieldAccess (Expr a) (Annot VarName)
   | IfStatement (Expr a) (IfTrue [Statement a])
@@ -190,7 +190,7 @@ instance ToIdent UIdent where
 data Ident a
   = Ident
   { identName     :: LIdentF a
-  , identTypeArgs :: [TypeDeclF a]
+  , identTypeArgs :: [Annot (TypeDeclF a)]
   }
 
 deriving instance ValidASTLevel a => Show (Ident a)
