@@ -39,11 +39,12 @@ module TQF.AST
 import           TQF.Type
 
 import           Control.Arrow      (Arrow ((***)))
-import           Data.List.Extra    (intercalate, unsnoc)
+import           Data.List.Extra    (unsnoc)
 import           Data.List.Split    (splitOn)
 import           Data.Maybe         (fromJust)
 import           Data.String.Pretty
 import           TQF.AST.Annotated
+import           TQF.Types
 
 data Parsed
 data Resolved
@@ -184,6 +185,31 @@ data UIdent = UIdent ResolveableModule TypeName
 data LIdent = LIdent ResolveableModule VarName
   deriving (Show, Eq, Ord)
 
+instance Pretty LIdent where
+  prettyPrint (LIdent mod x)
+    = concatMap ((++".") . prettyPrint) mod
+    ++ prettyPrint x
+
+instance Pretty UIdent where
+  prettyPrint (UIdent mod x)
+    = concatMap ((++".") . prettyPrint) mod
+    ++ prettyPrint x
+
+instance ToIdent LIdent where
+  toIdent
+    = uncurry LIdent
+    . (fmap TypeName *** VarName)
+    . fromJust
+    . unsnoc
+    . splitOn "."
+instance ToIdent UIdent where
+  toIdent
+    = uncurry UIdent
+    . fromJust
+    . unsnoc
+    . fmap TypeName
+    . splitOn "."
+
 data Ident a
   = Ident
   { identName     :: LIdentF a
@@ -194,9 +220,6 @@ deriving instance ValidASTLevel a => Show (Ident a)
 deriving instance ValidASTLevel a => Eq (Ident a)
 
 type ResolveableModule = [TypeName]
-
-newtype TypeName = TypeName {unTypeName:: String}
-    deriving (Eq, Ord)
 
 data IdentKind = ValueKind | NularCommandKind | UnaryCommandKind | BinaryCommandKind
     deriving (Show, Eq)
@@ -222,54 +245,6 @@ data ModLIdentDecl
 data LValue a
   = LValueVar (Annot (Ident a))
   | LValueField (Expr a) (Annot VarName)
-
-instance Show TypeName where
-  show (TypeName x) = show x
-
-newtype VarName = VarName {unVarName:: String}
-    deriving (Eq, Ord)
-
-instance Show VarName where
-  show (VarName x) = show x
-
-class ToIdent a where
-  toIdent :: String -> a
-
-instance ToIdent VarName where
-  toIdent = VarName
-instance ToIdent TypeName where
-  toIdent = TypeName
-instance ToIdent LIdent where
-  toIdent
-    = uncurry LIdent
-    . (fmap TypeName *** VarName)
-    . fromJust
-    . unsnoc
-    . splitOn "."
-instance ToIdent UIdent where
-  toIdent
-    = uncurry UIdent
-    . fromJust
-    . unsnoc
-    . fmap TypeName
-    . splitOn "."
-
-instance Pretty VarName where
-  prettyPrint = unVarName
-instance Pretty TypeName where
-  prettyPrint = unTypeName
-instance Pretty LIdent where
-  prettyPrint (LIdent mod x)
-    = concatMap ((++".") . prettyPrint) mod
-    ++ prettyPrint x
-
-instance Pretty UIdent where
-  prettyPrint (UIdent mod x)
-    = concatMap ((++".") . prettyPrint) mod
-    ++ prettyPrint x
-
-instance Pretty ResolveableModule where
-  prettyPrint = intercalate "." . fmap prettyPrint
 
 instance Pretty BinaryOperator where
   prettyPrint AndOp          = "&&"
