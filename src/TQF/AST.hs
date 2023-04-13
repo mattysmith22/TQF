@@ -132,8 +132,8 @@ data Expr_ a
   | WhileLoop (Expr a) [Statement a]
   | NilLit
 
-data ExprF a block e
-  = VariableF (Annot (Ident a))
+data ExprF a ident block e
+  = VariableF (Annot ident)
   | FuncCallF (Annot e) [Annot e]
   | BoolLiteralF Bool
   | UnOpF (Annot UnaryOperator) (Annot e)
@@ -149,7 +149,7 @@ data ExprF a block e
   | NilLitF
   deriving Functor
 
-type instance Base (Expr_ a) = ExprF a [Statement a]
+type instance Base (Expr_ a) = ExprF a (Ident a) [Statement a]
 
 instance Recursive (Expr_ a) where
     project (Variable x)      = VariableF x

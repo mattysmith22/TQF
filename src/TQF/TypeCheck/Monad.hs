@@ -5,6 +5,7 @@ module TQF.TypeCheck.Monad
     , curFacts
     , setCurFacts
     , exitWith
+    , oneOf
     ) where
 
 import           Control.Arrow
@@ -53,6 +54,15 @@ instance (Monoid f, Monoid t, Monad m) => Monad (TypeCheck f t m) where
                 }
         return (b, mergedfacts)
 
+oneOf :: (Monoid f, Monoid t, Monad m) => TypeCheck f t m a -> TypeCheck f t m b -> TypeCheck f t m (a, b)
+oneOf ma mb = TypeCheck $ \facts -> do
+    (a,ainfo) <- runTypeCheck' ma facts
+    (b,binfo) <- runTypeCheck' mb facts
+    return ((a,b), Info
+        { exitWithFacts = exitWithFacts ainfo <> exitWithFacts binfo
+        , exitWithType = exitWithType ainfo <> exitWithType binfo
+        , nominalFacts = nominalFacts ainfo <> nominalFacts binfo
+        })
 instance (Monoid f, Monoid t) => MonadTrans (TypeCheck f t) where
     lift mx = TypeCheck $ \facts -> do
         x <- mx
@@ -96,11 +106,12 @@ setCurFacts facts = TypeCheck $ \_ -> runTypeCheck' (pure ()) facts
 
 exitWith
     :: (Monoid f, Monoid t, Monad m)
-    => f
-    -> t
+    => TypeCheck f t m t
     -> TypeCheck f t m ()
-exitWith exitFacts exitType = TypeCheck $ \f -> return ((), Info
-    { exitWithFacts = exitFacts
-    , exitWithType = exitType
-    , nominalFacts = f
-    })
+exitWith mx =TypeCheck $ \f -> do
+    (exitType,exitInfo) <- runTypeCheck' mx f
+    return ((), Info
+        { exitWithFacts = exitWithFacts exitInfo <> nominalFacts exitInfo
+        , exitWithType = exitType <> exitWithType exitInfo
+        , nominalFacts = mempty
+        })
