@@ -14,6 +14,7 @@ import           TQF
 import           TQF.AST
 import qualified TQF.CodeGen                as CodeGen
 import           TQF.CodeGen.Optimiser      as Optimiser
+import           TQF.Resolve
 import           Test.Hspec
 
 spec :: Spec

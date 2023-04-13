@@ -17,7 +17,7 @@ import           Data.String.Pretty
 import           Debug.Trace
 import           TQF.AST
 import           TQF.AST.Annotated
-import           TQF.Resolve               (resolveGenericType)
+import           TQF.Resolve
 import           TQF.Type
 import           TQF.TypeCheck.Facts
 import           TQF.TypeCheck.Monad

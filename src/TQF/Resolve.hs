@@ -4,6 +4,8 @@
 module TQF.Resolve
     ( resolveModule
     , resolveGenericType
+    , Resolved
+    , LValue(..)
     ) where
 
 import           Control.Arrow
@@ -17,7 +19,9 @@ import qualified Data.Map                  as Map
 import           Data.String.Pretty        (Pretty (prettyPrint))
 import           TQF.AST
 import           TQF.AST.Annotated
+import           TQF.Parser                (Parsed, ParsedType (..))
 import           TQF.Resolve.Env
+import           TQF.Resolve.Types
 import qualified TQF.Type                  as Type
 
 applyWhen :: Bool -> (a -> a) -> a -> a

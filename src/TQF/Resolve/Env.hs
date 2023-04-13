@@ -19,6 +19,7 @@ import qualified Data.Map            as Map
 import           Data.String.Pretty
 import           TQF.AST
 import           TQF.AST.Annotated
+import           TQF.Resolve.Types
 import           TQF.Type
 
 data Environment = Environment

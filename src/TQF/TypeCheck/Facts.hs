@@ -7,10 +7,11 @@ module TQF.TypeCheck.Facts
     , resolveIdentType
     ) where
 
-import           Data.Map (Map)
-import qualified Data.Map as Map
+import           Data.Map    (Map)
+import qualified Data.Map    as Map
 import           TQF.AST
-import           TQF.Type (GenericType (..), Type')
+import           TQF.Resolve (Resolved)
+import           TQF.Type    (GenericType (..), Type')
 
 data IdentKey
     = DeclKey ResolveableModule VarName

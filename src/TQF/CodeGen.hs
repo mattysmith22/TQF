@@ -11,6 +11,7 @@ import           SQF.AST           (SQF, SQFType (..))
 import qualified SQF.AST           as SQF
 import           TQF.AST
 import           TQF.AST.Annotated
+import           TQF.Resolve       (LValue (..), Resolved)
 
 codeGen :: Module Resolved -> [SQF 'SStmt]
 codeGen Module{..} = concatMap codeGenDecl moduleDeclarations

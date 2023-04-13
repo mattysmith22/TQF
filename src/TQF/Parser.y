@@ -1,6 +1,10 @@
 {
 {-# LANGUAGE TypeFamilies #-}
-module TQF.Parser (parse) where
+module TQF.Parser
+    ( parse
+    , Parsed
+    , ParsedType(..)
+    ) where
 
 import TQF.Lexer
 import TQF.AST
@@ -292,4 +296,16 @@ parseError (Annot r x) = do
 lexer :: (Annot Token -> Alex a) -> Alex a
 lexer = (alexMonadScanAnnot >>=)
 
+data Parsed
+
+newtype ParsedType = ParsedType { unParsedType :: Type.Type' (UIdent, [Annot ParsedType])}
+    deriving (Show, Ord, Eq)
+
+instance Semigroup ParsedType where
+  l <> r = ParsedType $ unParsedType l <> unParsedType r
+
+type instance TypeDeclF Parsed = Annot ParsedType
+type instance LIdentF Parsed = LIdent
+type instance DeclIdentF Parsed = Annot VarName
+type instance LValueF Parsed = Expr Parsed
 }

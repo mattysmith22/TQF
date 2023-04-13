@@ -2,7 +2,6 @@
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE InstanceSigs         #-}
 {-# LANGUAGE StandaloneDeriving   #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -17,14 +16,9 @@ module TQF.AST
   , Expr_(..)
   , IfTrue(..)
   , Ident(..)
-  , LValue(..)
   , BinaryOperator(..)
   , UnaryOperator(..)
 
-  , Parsed
-  , ParsedType(..)
-
-  , Resolved
   , ModLIdentDecl(..)
   , IdentKind(..)
 
@@ -34,6 +28,11 @@ module TQF.AST
   , LIdent(..)
   , TypeName(..)
   , UIdent(..)
+
+  , TypeDeclF
+  , LIdentF
+  , DeclIdentF
+  , LValueF
   ) where
 
 import           TQF.Type
@@ -46,24 +45,10 @@ import           Data.String.Pretty
 import           TQF.AST.Annotated
 import           TQF.Types
 
-data Parsed
-data Resolved
-
-type family TypeDeclF a where
-  TypeDeclF Parsed = Annot ParsedType
-  TypeDeclF Resolved = Annot (Type' String)
-
-type family LIdentF a where
-  LIdentF Parsed = LIdent
-  LIdentF Resolved = ModLIdentDecl
-
-type family DeclIdentF a where
-  DeclIdentF Parsed = Annot VarName
-  DeclIdentF Resolved = Annot ModLIdentDecl
-
-type family LValueF a where
-  LValueF Parsed = Expr Parsed
-  LValueF Resolved = LValue Resolved
+type family TypeDeclF a :: *
+type family LIdentF a :: *
+type family DeclIdentF a :: *
+type family LValueF a :: *
 
 type ValidASTLevel a = (Show (DeclIdentF a), Eq (DeclIdentF a), Show (TypeDeclF a), Eq (TypeDeclF a), Show (LIdentF a), Eq (LIdentF a), Show(LValueF a), Eq (LValueF a))
 
@@ -165,20 +150,12 @@ deriving instance ValidASTLevel a => Show (Expr_ a)
 deriving instance ValidASTLevel a => Eq (Expr_ a)
 deriving instance ValidASTLevel a => Show (Statement_ a)
 deriving instance ValidASTLevel a => Eq (Statement_ a)
-deriving instance ValidASTLevel a => Show (LValue a)
-deriving instance ValidASTLevel a => Eq (LValue a)
 
 data UnaryOperator = NotOp | NegOp
     deriving (Show, Eq)
 
 data BinaryOperator = AndOp | OrOp | AddOp | SubOp | DivOp | MulOp | ModOp | EqOp | NotEqOp | LessOp | GreaterOp | LessEqualOp | GreaterEqualOp
     deriving (Show, Eq)
-
-newtype ParsedType = ParsedType { unParsedType :: Type' (UIdent, [Annot ParsedType])}
-    deriving (Show, Ord, Eq)
-instance Semigroup ParsedType where
-  (<>) :: ParsedType -> ParsedType -> ParsedType
-  l <> r = ParsedType $ unParsedType l <> unParsedType r
 
 data UIdent = UIdent ResolveableModule TypeName
   deriving (Show, Eq, Ord)
@@ -241,10 +218,6 @@ data ModLIdentDecl
     -- @lIdentId@ is used to differentiate these as well as lIdentName
   }
   deriving (Show, Eq)
-
-data LValue a
-  = LValueVar (Annot (Ident a))
-  | LValueField (Expr a) (Annot VarName)
 
 instance Pretty BinaryOperator where
   prettyPrint AndOp          = "&&"
