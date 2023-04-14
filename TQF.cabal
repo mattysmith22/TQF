@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6c7992e23c51a526e04b2a63bd4424fa4d1e4b2dd92a2798a658173ec65800c9
+-- hash: 62130eb8da31447bd61bc1fdc3037a62e28977e3542e99752d87b9bb145a0a8c
 
 name:           TQF
 version:        0.1.0.0
@@ -45,6 +45,7 @@ library
       TQF.TypeCheck
       TQF.TypeCheck.Facts
       TQF.TypeCheck.Monad
+      TQF.TypeCheck.Types
       TQF.Types
   other-modules:
       Paths_TQF

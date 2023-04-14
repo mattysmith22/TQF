@@ -13,38 +13,13 @@ import           Data.Either.Extra
 import qualified Data.Map                  as Map
 import           Data.Maybe
 import           Data.Monoid
-import           Data.String.Pretty
 import           TQF.AST
 import           TQF.AST.Annotated
 import           TQF.Resolve
 import           TQF.Type
 import           TQF.TypeCheck.Facts
 import           TQF.TypeCheck.Monad
-
-data TypeCheckErr = NotWithin (Annot (Type' String)) (Annot (Type' String))
-     | NoField (Annot VarName) (Annot (Type' String))
-     | InvalidBinOp (Annot BinaryOperator) (Type' String) (Type' String)
-     | InvalidUnOp (Annot UnaryOperator) (Type' String)
-     | ExpectedCode Range
-     | NotFound (Annot UIdent)
-     | CouldntInferType (Annot GenericType)
-     deriving (Show, Eq)
-
-type T a = TypeCheck Facts (Type' String) (Either TypeCheckErr) a
-
-data MGType
-    = Generic GenericType
-    | Concrete Type
-    deriving (Show, Eq)
-
-instance Pretty TypeCheckErr where
-    prettyPrint (NotWithin l r) = "type\n" ++ prettyPrint l ++ "\nis not within type\n" ++ prettyPrint r
-    prettyPrint (NoField name typ) = "type\n" ++ prettyPrint typ ++ "\n does not have a field " ++ prettyPrint name
-    prettyPrint (InvalidBinOp op l r) = "Invalid arguments to binary operator " ++ prettyPrint op ++ ": " ++ prettyPrint l ++ " and " ++ prettyPrint r
-    prettyPrint (InvalidUnOp op x) = "Invalid argument to unary operator " ++ prettyPrint op ++ ": " ++ prettyPrint x
-    prettyPrint (ExpectedCode r) = "Expected code " ++ prettyPrint r
-    prettyPrint (NotFound x) = "Not found: " ++ prettyPrint x
-    prettyPrint (CouldntInferType x) = "Couldn't infer type at " ++ prettyPrint (pos x)
+import           TQF.TypeCheck.Types
 
 shouldBeWithin :: Annot (Type' String) -> Annot (Type' String) -> T ()
 shouldBeWithin s@(Annot _ small) l@(Annot _ large) = if small `isWithin` large then return () else lift $ Left $ NotWithin s l
