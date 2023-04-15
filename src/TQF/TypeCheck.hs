@@ -10,6 +10,7 @@ import           Control.Error             (note)
 import           Control.Monad             ((<=<))
 import           Control.Monad.Trans.Class
 import           Data.Either.Extra
+import           Data.Functor.Foldable     (Base, para)
 import qualified Data.Map                  as Map
 import           Data.Maybe
 import           Data.Monoid
@@ -28,9 +29,9 @@ typeCheck :: Module Resolved -> Either TypeCheckErr ()
 typeCheck Module{..} = runTypeCheck $ mapM_ typeCheckDeclaration moduleDeclarations
 
 typeCheckDeclaration :: Declaration Resolved -> T ()
-typeCheckDeclaration (Annot _ FunctionDecl{..}) = do
+typeCheckDeclaration (Annot r FunctionDecl{..}) = do
     blockType <- typeCheckBlock functionContent
-    blockType `shouldBeWithin` functionType
+    Annot r blockType `shouldBeWithin` functionType
 typeCheckDeclaration (Annot _ VariableDecl{}) = return ()
 typeCheckDeclaration (Annot _ TypeDecl{}) = return ()
 typeCheckDeclaration (Annot _ CommandDecl{}) = return ()
@@ -39,163 +40,119 @@ typeCheckDeclaration (Annot _ ExternalVariableDecl{}) = return ()
 
 typeCheckStmt :: Statement Resolved -> T (Annot Type)
 typeCheckStmt (Annot r (VariableDeclaration typ _ mexpr)) = do
-    exprType <- maybe (return $ Annot (pos typ) $ simpleType Nil) (enforceConcrete <=< typeCheckExpr) mexpr
+    exprType <- maybe (return $ Annot (pos typ) $ simpleType Nil) (enforceConcrete <=< flip typeCheckExpr Nothing) mexpr
     exprType `shouldBeWithin` typ
     return $ Annot r $ simpleType Nil
 typeCheckStmt (Annot r (Assignment var val)) = do
     typeOfVar <- typeCheckLValue var
-    exprType <- enforceConcrete =<< typeCheckExpr val
+    exprType <- enforceConcrete =<< typeCheckExpr val Nothing
     exprType `shouldBeWithin` typeOfVar
     return $ Annot r $ simpleType Nil
-typeCheckStmt (Annot _ (Expr x)) = enforceConcrete =<< typeCheckExpr x
+typeCheckStmt (Annot _ (Expr x)) = enforceConcrete =<< typeCheckExpr x Nothing
 
 typeCheckLValue :: LValue Resolved -> T (Annot Type)
-typeCheckLValue (LValueVar var)                      = enforceConcrete =<< typeCheckLIdent var
-typeCheckLValue (LValueField expr field@(Annot r _)) = enforceConcrete =<< typeCheckExpr (Annot r (FieldAccess expr field))
+typeCheckLValue (LValueVar var)                      = enforceConcrete =<< traverse typeCheckLIdent var
+typeCheckLValue (LValueField expr field@(Annot r _)) = enforceConcrete =<< typeCheckExpr (Annot r (FieldAccess expr field)) Nothing
 
 enforceConcrete :: Annot MGType -> T (Annot Type)
 enforceConcrete (Annot r (Concrete x)) = return $ Annot r x
 enforceConcrete (Annot r (Generic x))  = lift $ Left $ CouldntInferType $ Annot r x
 
-typeCheckExpr :: Expr Resolved -> T (Annot MGType)
-typeCheckExpr (Annot r expr_) = typeCheckExpr' (Annot r $  getDeps expr_)
+typeCheckExpr :: Expr Resolved -> Maybe Bool -> T (Annot MGType)
+typeCheckExpr (Annot r expr_) = fmap (Annot r) <$> para tc expr_
     where
-        getDeps :: Expr_ Resolved -> ExprF Resolved (T (Annot MGType)) (T (Annot Type)) (T (Annot MGType))
-        getDeps (Variable x)
-            = VariableF
-            (e typeCheckLIdent x)
-        getDeps (FuncCall f args)
-            = FuncCallF
-            (e typeCheckExpr f)
-            (e typeCheckExpr <$> args)
-        getDeps (BoolLiteral x)
-            = BoolLiteralF x
-        getDeps (NumLiteral x)
-            = NumLiteralF x
-        getDeps (StringLiteral x)
-            = StringLiteralF x
-        getDeps (ArrayExpr xs)
-            = ArrayExprF
-            (e typeCheckExpr <$> xs)
-        getDeps (BinOp op l r)
-            = BinOpF op
-            (e typeCheckExpr l)
-            (e typeCheckExpr r)
-        getDeps (UnOp op x)
-            = UnOpF op
-            (e typeCheckExpr x)
-        getDeps (Cast typ x)
-            = CastF typ
-            (e typeCheckExpr x)
-        getDeps (Tuple xs)
-            = TupleF
-            (e typeCheckExpr <$> xs)
-        getDeps (IfStatement cond thn)
-            = IfStatementF
-            (e typeCheckExpr cond)
-            (case thn of
-                (ThenDo true mFalse) -> ThenDo (typeCheckBlock true) (typeCheckBlock <$> mFalse)
-                (ThenExitWith exit)  -> ThenExitWith (typeCheckBlock exit))
-        getDeps (WhileLoop cond stmt)
-            = WhileLoopF
-            (e typeCheckExpr cond)
-            (typeCheckBlock stmt)
-        getDeps NilLit = NilLitF
-        getDeps (FieldAccess expr field)
-            = FieldAccessF
-            (e typeCheckExpr expr)
-            field
+        tc :: Base (Expr_ Resolved) (Expr_ Resolved, Maybe Bool -> T MGType) -> Maybe Bool -> T MGType
+        tc = tc' . mapIdent (id&&&typeCheckLIdent) . mapBlock (id&&&typeCheckBlock)
 
-        e f x@(Annot r _) = Annot r $ f x
+        runExprTc x = traverse (($x) . snd)
 
-typeCheckExpr' :: Annot (ExprF Resolved (T (Annot MGType)) (T (Annot Type)) (T (Annot MGType))) -> T (Annot MGType)
-typeCheckExpr' (Annot _ (VariableF c)) = unAnnot c
-typeCheckExpr' (Annot r (FuncCallF func args)) = do
-    args' <- traverse (enforceConcrete =<<) (unAnnot <$> args)
-    func' <- unAnnot func
-    concFuncType <- case unAnnot func' of
-            (Generic func'@(GenericType args genTyp)) -> do
-                let inferredType = code (unAnnot <$> args') bottom
-                    inference = runInference genTyp inferredType
-                inferredParams <- lift $ note (CouldntInferType $ Annot (pos func) func')
-                        $ mapM (`Map.lookup` inference) args
-                lift $ left NotFound $ resolveGenericType (pos func) func' inferredParams
-            (Concrete func') -> return func'
-    lift
-        $ left (\(s,l) -> NotWithin (Annot (pos func) s) (Annot (foldMap pos args) l))
-        $ Annot r . Concrete
-        <$> validateFuncCall concFuncType (unAnnot <$> args')
-typeCheckExpr' (Annot r (BoolLiteralF x)) = return $ Annot r $ Concrete $ constBool x
-typeCheckExpr' (Annot r (NumLiteralF x)) = return $ Annot r $ Concrete $ constNumber x
-typeCheckExpr' (Annot r (StringLiteralF x)) = return $ Annot r $ Concrete $ constString x
-typeCheckExpr' (Annot r (ArrayExprF xs)) = do
-    types <- traverse (enforceConcrete =<<) (unAnnot <$> xs)
-    return $ Annot r $ Concrete $ array $ mconcat $ unAnnot <$> types
-typeCheckExpr' (Annot p (BinOpF o@(Annot _ op) l r)) = do
-    (Annot _ l') <- enforceConcrete =<< unAnnot l
-    (Annot _ r') <- enforceConcrete =<< unAnnot r
-    Annot p . Concrete <$> lift (typeCheckBinOp l' r')
-    where
-        typeCheckBinOp :: Type -> Type -> Either TypeCheckErr Type
-        typeCheckBinOp l r
-            | op `elem` [EqOp, NotEqOp] = return (simpleType Bool)
-            | op `elem` [SubOp, MulOp, DivOp, ModOp] = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Number,Number,Number)] l r
-            | op `elem` [AndOp, OrOp] = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Bool,Bool,Bool)] l r
-            | op == AddOp = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Number,Number,Number), (String,String,String)] l r
-            | op `elem` [LessOp, GreaterOp, LessEqualOp, GreaterEqualOp] = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Number,Number,Bool)] l r
-            | otherwise = error $ "Not a valid BinOp: " ++ show op
-typeCheckExpr' (Annot range (UnOpF o@(Annot _ NegOp) x)) = fmap (Annot range) $
-    unAnnot x >>= enforceConcrete
-    >>= (lift . fmap Concrete . left (InvalidUnOp o) . validateUnOp [(Number, Number)] . unAnnot)
-typeCheckExpr' (Annot range (UnOpF o@(Annot _ NotOp) x)) = fmap (Annot range) $
-    unAnnot x >>= enforceConcrete
-    >>= (lift . fmap Concrete . left (InvalidUnOp o) . validateUnOp [(Bool, Bool)] . unAnnot)
-typeCheckExpr' (Annot _ (CastF typ _)) =
-    return $ Concrete <$> typ
-typeCheckExpr' (Annot r (TupleF xs))
-    = Annot r
-    . Concrete
-    . tuple
-    . map unAnnot
-    <$> traverse (enforceConcrete=<<) (unAnnot <$> xs)
-typeCheckExpr' (Annot r (IfStatementF cond ifT)) = do
-    cond' <- enforceConcrete =<< unAnnot cond
-    cond' `shouldBeWithin` Annot (pos cond) (simpleType Bool)
-    case ifT of
-        (ThenDo thn mElse) ->
-            Annot r . Concrete . uncurry (<>) <$>
-            oneOf
-                (unAnnot <$> thn)
-                (maybe (return $ simpleType Nil) (fmap unAnnot) mElse)
-        (ThenExitWith xit) ->
-            Annot r . Concrete . uncurry (<>) <$>
-            oneOf
-                (exitWith (unAnnot <$> xit) >> return mempty)
-                (return $ simpleType Nil)-- If a value is passed back then the exitWith was not hit
-typeCheckExpr' (Annot _ (WhileLoopF cond stmt)) = do
-    typeOfCond <- enforceConcrete =<< unAnnot cond
-    typeOfCond `shouldBeWithin` Annot (pos cond) (simpleType Bool)
-    fmap Concrete <$> stmt
-typeCheckExpr' (Annot r NilLitF) = return (Annot r $ Concrete $ simpleType Nil)
-typeCheckExpr' (Annot r (FieldAccessF expr field)) = do
-    exprType <- enforceConcrete =<< unAnnot expr
-    let fieldType = lookupField (unVarName $ unAnnot field) $ unAnnot exprType
-    case fieldType of
-        Nothing  -> lift $ Left $ NoField field exprType
-        (Just x) -> return $ Annot r $ Concrete x
+        tc' :: ExprF Type (Ident Resolved, T MGType) ([Statement Resolved], T Type) (Expr_ Resolved, Maybe Bool -> T MGType) -> Maybe Bool -> T MGType
+        tc' (VariableF c) _ = snd $ unAnnot c
+        tc' (FuncCallF func args) _ = do
+            args' <- traverse (enforceConcrete =<<) (runExprTc Nothing <$> args)
+            func' <- snd (unAnnot func) Nothing
+            concFuncType <- case func' of
+                    (Generic func'@(GenericType args genTyp)) -> do
+                        let inferredType = code (unAnnot <$> args') bottom
+                            inference = runInference genTyp inferredType
+                        inferredParams <- lift $ note (CouldntInferType $ Annot (pos func) func')
+                                $ mapM (`Map.lookup` inference) args
+                        lift $ left NotFound $ resolveGenericType (pos func) func' inferredParams
+                    (Concrete func') -> return func'
+            lift
+                $ left (\(s,l) -> NotWithin (Annot (pos func) s) (Annot (foldMap pos args) l))
+                $ Concrete
+                <$> validateFuncCall concFuncType (unAnnot <$> args')
+        tc' (BoolLiteralF x) _ = return $ Concrete $ constBool x
+        tc' (NumLiteralF x) _ = return $ Concrete $ constNumber x
+        tc' (StringLiteralF x) _ = return $ Concrete $ constString x
+        tc' (ArrayExprF xs) _ = do
+            types <- traverse (enforceConcrete =<<) (runExprTc Nothing <$> xs)
+            return $ Concrete $ array $ mconcat $ unAnnot <$> types
+        tc' (BinOpF o@(Annot _ op) l r) _ = do
+            (Annot _ l') <- enforceConcrete =<< runExprTc Nothing l
+            (Annot _ r') <- enforceConcrete =<< runExprTc Nothing r
+            Concrete <$> lift (typeCheckBinOp l' r')
+            where
+            typeCheckBinOp :: Type -> Type -> Either TypeCheckErr Type
+            typeCheckBinOp l r
+                | op `elem` [EqOp, NotEqOp] = return (simpleType Bool)
+                | op `elem` [SubOp, MulOp, DivOp, ModOp] = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Number,Number,Number)] l r
+                | op `elem` [AndOp, OrOp] = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Bool,Bool,Bool)] l r
+                | op == AddOp = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Number,Number,Number), (String,String,String)] l r
+                | op `elem` [LessOp, GreaterOp, LessEqualOp, GreaterEqualOp] = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Number,Number,Bool)] l r
+                | otherwise = error $ "Not a valid BinOp: " ++ show op
+        tc' (UnOpF o@(Annot _ NegOp) x) _ =
+            runExprTc Nothing x >>= enforceConcrete
+            >>= (lift . fmap Concrete . left (InvalidUnOp o) . validateUnOp [(Number, Number)] . unAnnot)
+        tc' (UnOpF o@(Annot _ NotOp) x) _ =
+            runExprTc Nothing x >>= enforceConcrete
+            >>= (lift . fmap Concrete . left (InvalidUnOp o) . validateUnOp [(Bool, Bool)] . unAnnot)
+        tc' (CastF typ _) _ =
+            return $ Concrete $ unAnnot typ
+        tc' (TupleF xs) _
+            = Concrete
+            . tuple
+            . map unAnnot
+            <$> traverse (enforceConcrete=<<) (runExprTc Nothing <$> xs)
+        tc' (IfStatementF cond ifT) _ = do
+            cond' <- enforceConcrete =<< runExprTc Nothing cond
+            cond' `shouldBeWithin` Annot (pos cond) (simpleType Bool)
+            case ifT of
+                (ThenDo thn mElse) ->
+                    Concrete . uncurry (<>) <$>
+                    oneOf
+                        (snd thn)
+                        (maybe (return $ simpleType Nil) snd mElse)
+                (ThenExitWith xit) ->
+                    Concrete . uncurry (<>) <$>
+                    oneOf
+                        (exitWith (snd xit) >> return mempty)
+                        (return $ simpleType Nil)-- If a value is passed back then the exitWith was not hit
+        tc' (WhileLoopF cond stmt) _ = do
+            typeOfCond <- enforceConcrete =<< runExprTc Nothing cond
+            typeOfCond `shouldBeWithin` Annot (pos cond) (simpleType Bool)
+            Concrete <$> snd stmt
+        tc' NilLitF _ = return (Concrete $ simpleType Nil)
+        tc' (FieldAccessF expr field) _ = do
+            exprType <- enforceConcrete =<< runExprTc Nothing expr
+            let fieldType = lookupField (unVarName $ unAnnot field) $ unAnnot exprType
+            case fieldType of
+                Nothing  -> lift $ Left $ NoField field exprType
+                (Just x) -> return $ Concrete x
 
 foldMapM :: (Monoid b, Monad m, Foldable f) => (a -> m b) -> f a -> m b
 foldMapM f = foldr (\x acc -> (<>) <$> f x <*> acc) (pure mempty)
 
-typeCheckBlock :: [Statement Resolved] -> T (Annot Type)
+typeCheckBlock :: [Statement Resolved] -> T Type
 typeCheckBlock stmts
-    = (\(exitWith, x) -> (exitWith<>) <$> fromMaybe mempty (getLast x))
+    = unAnnot . (\(exitWith, x) -> (exitWith<>) <$> fromMaybe mempty (getLast x))
     <$> block (foldMapM (fmap (Last . Just) . typeCheckStmt) stmts)
 
-typeCheckLIdent :: Annot (Ident Resolved) -> T (Annot MGType)
-typeCheckLIdent (Annot r i) = do
+typeCheckLIdent :: Ident Resolved -> T MGType
+typeCheckLIdent i = do
     facts <- curFacts
     let i' = resolveIdentType facts i
     case (identTypeArgs i', genTypeArgs $ lIdentType $ identName i') of
-        ([], _:_) -> return $ Annot r $ Generic $ lIdentType $ identName i'
-        _ -> lift $ fmap (Annot r . Concrete) $ mapLeft NotFound $ resolveGenericType r (lIdentType $ identName i') (unAnnot <$> identTypeArgs i')
+        ([], _:_) -> return $ Generic $ lIdentType $ identName i'
+        _ -> lift $ fmap Concrete $ mapLeft NotFound $ resolveGenericType NoPlace (lIdentType $ identName i') (unAnnot <$> identTypeArgs i')

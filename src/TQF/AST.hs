@@ -15,7 +15,6 @@ module TQF.AST
   , Statement_(..)
   , Expr
   , Expr_(..)
-  , ExprF(..)
   , IfTrue(..)
   , Ident(..)
   , BinaryOperator(..)
@@ -35,6 +34,11 @@ module TQF.AST
   , LIdentF
   , DeclIdentF
   , LValueF
+
+  , ExprF(..)
+  , mapTypeDecl
+  , mapIdent
+  , mapBlock
   ) where
 
 import           TQF.Type
@@ -132,24 +136,72 @@ data Expr_ a
   | WhileLoop (Expr a) [Statement a]
   | NilLit
 
-data ExprF a ident block e
+type instance Base (Expr_ a) = ExprF (TypeDeclF a) (Ident a) [Statement a]
+
+data ExprF typeDecl ident block expr
   = VariableF (Annot ident)
-  | FuncCallF (Annot e) [Annot e]
+  | FuncCallF (Annot expr) [Annot expr]
   | BoolLiteralF Bool
-  | UnOpF (Annot UnaryOperator) (Annot e)
-  | BinOpF (Annot BinaryOperator) (Annot e) (Annot e)
+  | UnOpF (Annot UnaryOperator) (Annot expr)
+  | BinOpF (Annot BinaryOperator) (Annot expr) (Annot expr)
   | NumLiteralF Double
   | StringLiteralF String
-  | ArrayExprF [Annot e]
-  | CastF (Annot (TypeDeclF a)) (Annot e)
-  | TupleF [Annot e]
-  | FieldAccessF (Annot e) (Annot VarName)
-  | IfStatementF (Annot e) (IfTrue block)
-  | WhileLoopF (Annot e) block
+  | ArrayExprF [Annot expr]
+  | CastF (Annot typeDecl) (Annot expr)
+  | TupleF [Annot expr]
+  | FieldAccessF (Annot expr) (Annot VarName)
+  | IfStatementF (Annot expr) (IfTrue block)
+  | WhileLoopF (Annot expr) block
   | NilLitF
   deriving Functor
 
-type instance Base (Expr_ a) = ExprF a (Ident a) [Statement a]
+mapTypeDecl :: (typeDecl -> typeDecl') -> ExprF typeDecl ident block expr -> ExprF typeDecl' ident block expr
+mapTypeDecl _ (VariableF x)      = VariableF x
+mapTypeDecl _ (FuncCallF x as)   = FuncCallF x as
+mapTypeDecl _ (BoolLiteralF x)   = BoolLiteralF x
+mapTypeDecl _ (UnOpF a b)        = UnOpF a b
+mapTypeDecl _ (BinOpF a b c)     = BinOpF a b c
+mapTypeDecl _ (NumLiteralF x)    = NumLiteralF x
+mapTypeDecl _ (StringLiteralF x) = StringLiteralF x
+mapTypeDecl _ (ArrayExprF xs)    = ArrayExprF xs
+mapTypeDecl f (CastF a b)        = CastF (f <$> a) b
+mapTypeDecl _ (TupleF a)         = TupleF a
+mapTypeDecl _ (FieldAccessF a b) = FieldAccessF a b
+mapTypeDecl _ (IfStatementF a b) = IfStatementF a b
+mapTypeDecl _ (WhileLoopF a b)   = WhileLoopF a b
+mapTypeDecl _ NilLitF            = NilLitF
+
+mapIdent :: (ident -> ident') -> ExprF typeDecl ident block expr -> ExprF typeDecl ident' block expr
+mapIdent f (VariableF x)      = VariableF (f <$> x)
+mapIdent _ (FuncCallF x as)   = FuncCallF x as
+mapIdent _ (BoolLiteralF x)   = BoolLiteralF x
+mapIdent _ (UnOpF a b)        = UnOpF a b
+mapIdent _ (BinOpF a b c)     = BinOpF a b c
+mapIdent _ (NumLiteralF x)    = NumLiteralF x
+mapIdent _ (StringLiteralF x) = StringLiteralF x
+mapIdent _ (ArrayExprF xs)    = ArrayExprF xs
+mapIdent _ (CastF a b)        = CastF a b
+mapIdent _ (TupleF a)         = TupleF a
+mapIdent _ (FieldAccessF a b) = FieldAccessF a b
+mapIdent _ (IfStatementF a b) = IfStatementF a b
+mapIdent _ (WhileLoopF a b)   = WhileLoopF a b
+mapIdent _ NilLitF            = NilLitF
+
+mapBlock :: (block -> block') -> ExprF typeDecl ident block expr -> ExprF typeDecl ident block' expr
+mapBlock _ (VariableF x)      = VariableF x
+mapBlock _ (FuncCallF x as)   = FuncCallF x as
+mapBlock _ (BoolLiteralF x)   = BoolLiteralF x
+mapBlock _ (UnOpF a b)        = UnOpF a b
+mapBlock _ (BinOpF a b c)     = BinOpF a b c
+mapBlock _ (NumLiteralF x)    = NumLiteralF x
+mapBlock _ (StringLiteralF x) = StringLiteralF x
+mapBlock _ (ArrayExprF xs)    = ArrayExprF xs
+mapBlock _ (CastF a b)        = CastF a b
+mapBlock _ (TupleF a)         = TupleF a
+mapBlock _ (FieldAccessF a b) = FieldAccessF a b
+mapBlock f (IfStatementF a b) = IfStatementF a (fmap f b)
+mapBlock f (WhileLoopF a b)   = WhileLoopF a (f b)
+mapBlock _ NilLitF            = NilLitF
 
 instance Recursive (Expr_ a) where
     project (Variable x)      = VariableF x
@@ -166,6 +218,22 @@ instance Recursive (Expr_ a) where
     project (IfStatement a b) = IfStatementF a b
     project (WhileLoop a b)   = WhileLoopF a b
     project NilLit            = NilLitF
+
+instance Corecursive (Expr_ a) where
+    embed (VariableF x)      = Variable x
+    embed (FuncCallF x as)   = FuncCall x as
+    embed (BoolLiteralF x)   = BoolLiteral x
+    embed (UnOpF a b)        = UnOp a b
+    embed (BinOpF a b c)     = BinOp a b c
+    embed (NumLiteralF x)    = NumLiteral x
+    embed (StringLiteralF x) = StringLiteral x
+    embed (ArrayExprF xs)    = ArrayExpr xs
+    embed (CastF a b)        = Cast a b
+    embed (TupleF a)         = Tuple a
+    embed (FieldAccessF a b) = FieldAccess a b
+    embed (IfStatementF a b) = IfStatement a b
+    embed (WhileLoopF a b)   = WhileLoop a b
+    embed NilLitF            = NilLit
 
 data IfTrue a
   = ThenDo a (Maybe a)
