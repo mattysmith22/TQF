@@ -1,0 +1,23 @@
+module Types.Narrowing where
+
+import Prelude
+
+command isEqualType<A,B>(a:A,b:B):bool = "isEqualType"
+command isWithin<A>(a:A):string = "str"
+
+function testNarrowing(x:string|num):nil {
+    if (isEqualType(x,"")) then {
+        systemChat(x);
+    } else {
+        systemChat("Well we got a number so I can't systemChat it");
+    };
+}
+
+function testNarrowing2(x:string|num|hashmap):nil {
+    if (isEqualType(x,"") || isEqualType (x,1)) then {
+        isWithin<num|string>(x);
+        systemChat(str(x));
+    } else {
+        systemChat("Well we got a hashmap so I can't systemChat it");
+    };
+}

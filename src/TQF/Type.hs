@@ -28,6 +28,7 @@ module TQF.Type
 
     , resolveType
     , lookupField
+    , simpleTypesOf
     , validateFuncCall
     , validateBinOp
     , validateUnOp
@@ -331,6 +332,18 @@ intersect (Options ls) (Options rs)
     isBottom :: Type -> Bool
     isBottom Top          = False
     isBottom (Options os) = Set.null os
+
+simpleTypesOf :: Type' String -> Type' String
+simpleTypesOf Top = Top
+simpleTypesOf (Options xs) = Options $ Set.fromList [SimpleType sx | x<-Set.toList xs, sx<-simpleTypeOf x]
+    where
+        simpleTypeOf (SimpleType x) = [x]
+        simpleTypeOf (ConstType x)  = [typeOfConst x]
+        simpleTypeOf (ArrayType _ ) = [Array]
+        simpleTypeOf (TupleType _ ) = [Array]
+        simpleTypeOf (CodeType _ _) = [Code]
+        simpleTypeOf (RecordType _) = [HashMap]
+        simpleTypeOf (ExtraType _)  =[]
 
 resolveType :: (Ord b, Applicative m) => (a -> m (Type' b)) -> Type' a -> m (Type' b)
 resolveType _ Top = pure Top

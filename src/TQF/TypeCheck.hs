@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
 module TQF.TypeCheck
     ( TypeCheckErr(..)
     , typeCheck
@@ -20,6 +21,7 @@ import           TQF.Resolve
 import           TQF.Type
 import           TQF.TypeCheck.Facts
 import           TQF.TypeCheck.Monad
+import           TQF.TypeCheck.Narrowing
 import           TQF.TypeCheck.Types
 
 shouldBeWithin :: Annot (Type' String) -> Annot (Type' String) -> T ()
@@ -66,10 +68,23 @@ typeCheckExpr (Annot r expr_) = fmap (Annot r) <$> para tc expr_
 
         runExprTc x = traverse (($x) . snd)
 
+        runNarrowing
+            :: Maybe Bool
+            -> NarrowableExpr
+            -> T ()
+        runNarrowing Nothing _         = return ()
+        runNarrowing (Just guess) expr = sequence_ $ catMaybes ((\n -> n guess expr) <$> narrowingRules)
+
+        zipNewInfo = zipWith (\a b -> (,unAnnot b) . fst <$> a)
+
         tc' :: ExprF Type (Ident Resolved, T MGType) ([Statement Resolved], T Type) (Expr_ Resolved, Maybe Bool -> T MGType) -> Maybe Bool -> T MGType
-        tc' (VariableF c) _ = snd $ unAnnot c
-        tc' (FuncCallF func args) _ = do
-            args' <- traverse (enforceConcrete =<<) (runExprTc Nothing <$> args)
+        tc' (VariableF c) mGuess = do
+            varTyp <- snd (unAnnot c)
+            runNarrowing mGuess (VariableF ((,varTyp) . fst <$> c))
+            return varTyp
+        tc' (FuncCallF func args) mGuess = do
+            genArgs' <- traverse (runExprTc Nothing) args
+            args' <-traverse enforceConcrete genArgs'
             func' <- snd (unAnnot func) Nothing
             concFuncType <- case func' of
                     (Generic func'@(GenericType args genTyp)) -> do
@@ -79,67 +94,146 @@ typeCheckExpr (Annot r expr_) = fmap (Annot r) <$> para tc expr_
                                 $ mapM (`Map.lookup` inference) args
                         lift $ left NotFound $ resolveGenericType (pos func) func' inferredParams
                     (Concrete func') -> return func'
-            lift
-                $ left (\(s,l) -> NotWithin (Annot (pos func) s) (Annot (foldMap pos args) l))
-                $ Concrete
-                <$> validateFuncCall concFuncType (unAnnot <$> args')
-        tc' (BoolLiteralF x) _ = return $ Concrete $ constBool x
-        tc' (NumLiteralF x) _ = return $ Concrete $ constNumber x
-        tc' (StringLiteralF x) _ = return $ Concrete $ constString x
-        tc' (ArrayExprF xs) _ = do
-            types <- traverse (enforceConcrete =<<) (runExprTc Nothing <$> xs)
+            retType <- lift
+                    $ left (\(s,l) -> NotWithin (Annot (pos func) s) (Annot (foldMap pos args) l))
+                    $ Concrete
+                    <$> validateFuncCall concFuncType (unAnnot <$> args')
+            runNarrowing mGuess (FuncCallF ((,func') . fst <$> func) (zipNewInfo args genArgs'))
+            return retType
+        tc' (BoolLiteralF x) mGuess = do
+            runNarrowing mGuess (BoolLiteralF x)
+            return $ Concrete $  constBool x
+        tc' (NumLiteralF x) mGuess = do
+            runNarrowing mGuess (NumLiteralF x)
+            return $ Concrete $ constNumber x
+        tc' (StringLiteralF x) mGuess = do
+            runNarrowing mGuess (StringLiteralF x)
+            return $ Concrete $ constString x
+        tc' (ArrayExprF xs) mGuess = do
+            genTypes <- traverse (runExprTc Nothing) xs
+            types <- traverse enforceConcrete genTypes
+            runNarrowing mGuess (ArrayExprF $ zipNewInfo xs genTypes)
             return $ Concrete $ array $ mconcat $ unAnnot <$> types
-        tc' (BinOpF o@(Annot _ op) l r) _ = do
-            (Annot _ l') <- enforceConcrete =<< runExprTc Nothing l
-            (Annot _ r') <- enforceConcrete =<< runExprTc Nothing r
-            Concrete <$> lift (typeCheckBinOp l' r')
-            where
-            typeCheckBinOp :: Type -> Type -> Either TypeCheckErr Type
-            typeCheckBinOp l r
-                | op `elem` [EqOp, NotEqOp] = return (simpleType Bool)
-                | op `elem` [SubOp, MulOp, DivOp, ModOp] = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Number,Number,Number)] l r
-                | op `elem` [AndOp, OrOp] = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Bool,Bool,Bool)] l r
-                | op == AddOp = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Number,Number,Number), (String,String,String)] l r
-                | op `elem` [LessOp, GreaterOp, LessEqualOp, GreaterEqualOp] = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Number,Number,Bool)] l r
-                | otherwise = error $ "Not a valid BinOp: " ++ show op
-        tc' (UnOpF o@(Annot _ NegOp) x) _ =
-            runExprTc Nothing x >>= enforceConcrete
-            >>= (lift . fmap Concrete . left (InvalidUnOp o) . validateUnOp [(Number, Number)] . unAnnot)
-        tc' (UnOpF o@(Annot _ NotOp) x) _ =
-            runExprTc Nothing x >>= enforceConcrete
-            >>= (lift . fmap Concrete . left (InvalidUnOp o) . validateUnOp [(Bool, Bool)] . unAnnot)
-        tc' (CastF typ _) _ =
+
+        tc' (BinOpF o@(Annot _ AndOp) l r) (Just True) = do
+            (Annot _ l') <- enforceConcrete =<< runExprTc (Just True) l
+            (Annot _ r') <- enforceConcrete =<< runExprTc (Just True) r
+            Concrete <$> lift (typeCheckBinOp o l' r')
+        tc' (BinOpF o@(Annot _ AndOp) l r) (Just False)
+            = Concrete . uncurry (<>) <$> oneOf
+                (do
+                    (Annot _ l') <- enforceConcrete =<< runExprTc (Just True) l
+                    (Annot _ r') <- enforceConcrete =<< runExprTc (Just False) r
+                    lift (typeCheckBinOp o l' r'))
+                (runCondTc False l)
+        tc' (BinOpF o@(Annot _ AndOp) l r) Nothing
+            = Concrete . uncurry (<>) <$> oneOf
+                (do
+                    (Annot _ l') <- enforceConcrete =<< runExprTc (Just True) l
+                    (Annot _ r') <- enforceConcrete =<< runExprTc Nothing r
+                    lift (typeCheckBinOp o l' r'))
+                (runCondTc False l)
+        tc' (BinOpF o@(Annot _ OrOp) l r) (Just False) = do
+            (Annot _ l') <- enforceConcrete =<< runExprTc (Just False) l
+            (Annot _ r') <- enforceConcrete =<< runExprTc (Just False) r
+            Concrete <$> lift (typeCheckBinOp o l' r')
+        tc' (BinOpF o@(Annot _ OrOp) l r) (Just True)
+            = Concrete . uncurry (<>) <$> oneOf
+                (do
+                    (Annot _ l') <- enforceConcrete =<< runExprTc (Just False) l
+                    (Annot _ r') <- enforceConcrete =<< runExprTc (Just True) r
+                    lift (typeCheckBinOp o l' r'))
+                (runCondTc True l)
+        tc' (BinOpF o@(Annot _ OrOp) l r) Nothing
+            = Concrete . uncurry (<>) <$> oneOf
+                (do
+                    (Annot _ l') <- enforceConcrete =<< runExprTc (Just False) l
+                    (Annot _ r') <- enforceConcrete =<< runExprTc Nothing r
+                    lift (typeCheckBinOp o l' r'))
+                (runCondTc True l)
+
+        tc' (BinOpF o l r) mGuess = do
+            genL <- runExprTc Nothing l
+            genR <- runExprTc Nothing r
+            (Annot _ l') <- enforceConcrete genL
+            (Annot _ r') <- enforceConcrete genR
+            runNarrowing mGuess (BinOpF o ((,unAnnot genL) . fst <$> l) ((,unAnnot genR) . fst <$> r))
+            Concrete <$> lift (typeCheckBinOp o l' r')
+        tc' (UnOpF o@(Annot _ NegOp) x) mGuess = do
+            genTyp <- runExprTc Nothing x
+            retTyp <- enforceConcrete genTyp >>= (lift . fmap Concrete . left (InvalidUnOp o) . validateUnOp [(Number, Number)] . unAnnot)
+            runNarrowing mGuess (UnOpF o ((,unAnnot genTyp) . fst <$> x))
+            return retTyp
+        tc' (UnOpF o@(Annot _ NotOp) x) mGuess = do
+            genTyp <- runExprTc (not <$> mGuess) x
+            retTyp <- enforceConcrete genTyp >>= (lift . fmap Concrete . left (InvalidUnOp o) . validateUnOp [(Bool, Bool)] . unAnnot)
+            runNarrowing mGuess (UnOpF o ((,unAnnot genTyp) . fst <$> x))
+            return retTyp
+
+        tc' (CastF typ x) mGuess = do
+            genTyp <- runExprTc Nothing x
+            runNarrowing mGuess (CastF typ ((,unAnnot genTyp). fst <$> x))
             return $ Concrete $ unAnnot typ
-        tc' (TupleF xs) _
-            = Concrete
-            . tuple
-            . map unAnnot
-            <$> traverse (enforceConcrete=<<) (runExprTc Nothing <$> xs)
-        tc' (IfStatementF cond ifT) _ = do
-            cond' <- enforceConcrete =<< runExprTc Nothing cond
-            cond' `shouldBeWithin` Annot (pos cond) (simpleType Bool)
+        tc' (TupleF xs) mGuess = do
+            genTyps <- traverse (runExprTc Nothing) xs
+            retTyp <- Concrete
+                    . tuple
+                    . map unAnnot
+                    <$> traverse enforceConcrete genTyps
+            runNarrowing mGuess (TupleF $ zipNewInfo xs genTyps)
+            return retTyp
+        tc' (IfStatementF cond ifT) mGuess =
             case ifT of
-                (ThenDo thn mElse) ->
-                    Concrete . uncurry (<>) <$>
-                    oneOf
-                        (snd thn)
-                        (maybe (return $ simpleType Nil) snd mElse)
-                (ThenExitWith xit) ->
-                    Concrete . uncurry (<>) <$>
-                    oneOf
-                        (exitWith (snd xit) >> return mempty)
-                        (return $ simpleType Nil)-- If a value is passed back then the exitWith was not hit
-        tc' (WhileLoopF cond stmt) _ = do
-            typeOfCond <- enforceConcrete =<< runExprTc Nothing cond
+                (ThenDo thn mElse) -> do
+                    retTyps <- oneOf
+                        (runCondTc True cond >> snd thn)
+                        (runCondTc False cond >> traverse snd mElse)
+                    runNarrowing mGuess (IfStatementF ((,Concrete $ simpleType Bool) . fst <$> cond)
+                        $ ThenDo
+                            (fst thn,Concrete $ fst retTyps)
+                            ((\l r -> (fst l,Concrete r)) <$> mElse <*> snd retTyps))
+                    return $ Concrete $ (\(l,r) -> l <> fromMaybe (simpleType Nil) r) retTyps
+                (ThenExitWith xit) -> do
+                    retTyps <- oneOf
+                        (runCondTc True cond >> exitWith (snd xit) >> return mempty)
+                        (runCondTc False cond >> return (simpleType Nil))-- If a value is passed back then the exitWith was not hit
+                    return $ Concrete $ uncurry (<>) retTyps
+        tc' (WhileLoopF cond stmt) mGuess = do
+            genTypOfCond <- runExprTc Nothing cond
+            typeOfCond <- enforceConcrete genTypOfCond
             typeOfCond `shouldBeWithin` Annot (pos cond) (simpleType Bool)
-            Concrete <$> snd stmt
-        tc' NilLitF _ = return (Concrete $ simpleType Nil)
-        tc' (FieldAccessF expr field) _ = do
-            exprType <- enforceConcrete =<< runExprTc Nothing expr
+            typeOfStmt <- Concrete <$> snd stmt
+            runNarrowing mGuess (WhileLoopF ((,unAnnot genTypOfCond). fst <$>cond) (fst stmt, typeOfStmt))
+            return typeOfStmt
+
+        tc' NilLitF mGuess = do
+            runNarrowing mGuess NilLitF
+            return (Concrete $ simpleType Nil)
+        tc' (FieldAccessF expr field) mGuess = do
+            exprGenType <- runExprTc Nothing expr
+            exprType <- enforceConcrete exprGenType
             let fieldType = lookupField (unVarName $ unAnnot field) $ unAnnot exprType
             case fieldType of
                 Nothing  -> lift $ Left $ NoField field exprType
-                (Just x) -> return $ Concrete x
+                (Just x) -> do
+                    runNarrowing mGuess (FieldAccessF ((,unAnnot exprGenType).fst<$>expr) field)
+                    return $ Concrete x
+
+        runCondTc x expr
+            = runExprTc (Just x) expr
+            >>= enforceConcrete
+            >>= (`shouldBeWithin` Annot (pos expr) (simpleType Bool))
+            >> return (simpleType Bool)
+
+typeCheckBinOp :: Annot BinaryOperator -> Type -> Type -> Either TypeCheckErr Type
+typeCheckBinOp o l r
+    | op `elem` [EqOp, NotEqOp] = return (simpleType Bool)
+    | op `elem` [SubOp, MulOp, DivOp, ModOp] = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Number,Number,Number)] l r
+    | op `elem` [AndOp, OrOp] = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Bool,Bool,Bool)] l r
+    | op == AddOp = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Number,Number,Number), (String,String,String)] l r
+    | op `elem` [LessOp, GreaterOp, LessEqualOp, GreaterEqualOp] = left (uncurry $ InvalidBinOp o) $ validateBinOp [(Number,Number,Bool)] l r
+    | otherwise = error $ "Not a valid BinOp: " ++ show op
+    where op = unAnnot o
 
 foldMapM :: (Monoid b, Monad m, Foldable f) => (a -> m b) -> f a -> m b
 foldMapM f = foldr (\x acc -> (<>) <$> f x <*> acc) (pure mempty)
