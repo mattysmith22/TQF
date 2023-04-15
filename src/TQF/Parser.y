@@ -131,7 +131,7 @@ BaseType :: { Annot ParsedType }
     | '[' Type ']' {Annot (pos $1 <> pos $3) $ ParsedType $ Type.array $ unParsedType $ unAnnot $2}
     | '(' ')' { Annot (pos $1 <> pos $2) $ ParsedType $ Type.tuple [] }
     | '\'(' TupleElements ')' { Annot (pos $1 <> pos $3) $ ParsedType $ Type.tuple (fmap (unParsedType . unAnnot) $2) }
-    | '(' Type ',' Type TupleElements ')' { Annot (pos $1 <> pos $6) $ ParsedType $ Type.tuple (unParsedType (unAnnot $2) :unParsedType (unAnnot $4) : (fmap (unParsedType . unAnnot) $5) ) }
+    | '(' Type ',' TupleElements1 ')' { Annot (pos $1 <> pos $5) $ ParsedType $ Type.tuple (unParsedType (unAnnot $2) : (fmap (unParsedType . unAnnot) $4) ) }
 
     -- Record definition
     | '{' TypeRecordFields '}' { Annot (pos $1 <> pos $3) $ ParsedType $ Type.record $ Map.fromList $ fmap (second unParsedType) $2 }
@@ -139,6 +139,10 @@ BaseType :: { Annot ParsedType }
 TypeArgs :: { [Annot ParsedType] }
     : {- empty -} {[]}
     | '<' TupleElements '>' {$2}
+
+TupleElements1 :: { [Annot ParsedType] }
+    : Type { [$1] }
+    | Type ',' TupleElements {$1 : $3 }
 
 TupleElements :: { [Annot ParsedType] }
     : {- empty -} {[]}
