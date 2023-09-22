@@ -9,10 +9,10 @@
 			"include": "#keywords"
 		},
 		{
-			"include": "#strings"
+			"include": "#simpleTypes"
 		},
 		{
-			"include": "#simpleTypes"
+			"include": "#literal"
 		},
 		{
 			"include": "#uident"
@@ -23,38 +23,60 @@
 	],
 	"repository": {
 		"inline-comment": {
-			"patterns": [{
-				"comment": "Line comments",
-				"name": "comment.line.double-dash.tqf",
-				"begin": "--",
-				"beginCaptures": {
-					"0": {
-						"name": "punctuation.definition.comment.tqf"
-					}
-				},
-				"end": "$"
-			}]
-		},
-		"keywords": {
-			"patterns": [{
-				"name": "keyword.control.tqf",
-				"match": "\\b(module|where|import|qualified|as|if|else|while|return|type|function|global|command|external)\\b"
-			}]
-		},
-		"simpleTypes": {
-			"patterns": [{
-				"name": "support.type",
-				"match": "\\b(top|string|num|array|hashmap|bool|code|nil)\\b"
-			}]
-		},
-		"strings": {
-			"name": "string.quoted.double.tqf",
-			"begin": "\"",
-			"end": "\"",
 			"patterns": [
 				{
-					"name": "constant.character.escape.tqf",
-					"match": "\\\\."
+					"comment": "Line comments",
+					"name": "comment.line.double-dash.tqf",
+					"begin": "--",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.comment.tqf"
+						}
+					},
+					"end": "$"
+				}
+			]
+		},
+		"keywords": {
+			"patterns": [
+				{
+					"name": "keyword.control.tqf",
+					"match": "\\b(module|where|import|qualified|as|if|then|else|whilevar|type|function|global|command|external)\\b"
+				}
+			]
+		},
+		"simpleTypes": {
+			"patterns": [
+				{
+					"name": "support.type",
+					"match": "\\b(top|string|num|array|hashmap|bool|code|nil)\\b"
+				}
+			]
+		},
+		"literal": {
+			"patterns": [
+				{
+					"name": "constant.numeric.dec",
+					"match": "\\d+(\\.\\d+)?"
+				},
+				{
+					"name": "constant.numeric.hex",
+					"match": "0x[0-9a-f]+"
+				},
+				{
+					"name": "string.quoted.double.tqf",
+					"begin": "\"",
+					"end": "\"",
+					"patterns": [
+						{
+							"name": "constant.character.escape.tqf",
+							"match": "\\\\."
+						}
+					]
+				},
+				{
+					"name": "constant.language",
+					"match": "\\b(true|false)\\b"
 				}
 			]
 		},
