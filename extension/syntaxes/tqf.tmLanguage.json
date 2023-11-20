@@ -41,7 +41,7 @@
 			"patterns": [
 				{
 					"name": "keyword.control.tqf",
-					"match": "\\b(module|where|import|qualified|as|if|then|else|whilevar|type|function|global|command|external)\\b"
+					"match": "\\b(module|where|import|qualified|as|if|then|exitWith|else|while|var|type|function|global|command|external)\\b"
 				}
 			]
 		},
