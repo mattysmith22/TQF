@@ -62,6 +62,19 @@ tokens :-
   "bool" { constToken $ TokenSimpleType  Type.Bool}
   "code" { constToken $ TokenSimpleType  Type.Code}
   "nil" { constToken $ TokenSimpleType  Type.Nil}
+  "config" { constToken $ TokenSimpleType Type.Config}
+  "control" { constToken $ TokenSimpleType Type.Control}
+  "diaryRecord" { constToken $ TokenSimpleType Type.DiaryRecord}
+  "display" { constToken $ TokenSimpleType Type.Display}
+  "group" { constToken $ TokenSimpleType Type.Group}
+  "location" { constToken $ TokenSimpleType Type.Location}
+  "object" { constToken $ TokenSimpleType Type.Object}
+  "scriptHandle" { constToken $ TokenSimpleType Type.ScriptHandle}
+  "side" { constToken $ TokenSimpleType Type.Side}
+  "structuredText" { constToken $ TokenSimpleType Type.StructuredText}
+  "task" { constToken $ TokenSimpleType Type.Task}
+  "teamMember" { constToken $ TokenSimpleType Type.TeamMember}
+
 -- Reserved Symbols
   "="		{ constToken TokenAssign }
 -- Groupings

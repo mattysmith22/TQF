@@ -49,7 +49,7 @@
 			"patterns": [
 				{
 					"name": "support.type",
-					"match": "\\b(top|string|num|array|hashmap|bool|code|nil)\\b"
+					"match": "\\b(top|string|num|array|hashmap|bool|code|nil|config|control|diaryRecord|display|group|location|object|scriptHandle|side|structuredText|task|teamMember)\\b"
 				}
 			]
 		},

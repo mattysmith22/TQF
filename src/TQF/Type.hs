@@ -175,17 +175,29 @@ instance Arbitrary ConstType where
         , ConstString <$> arbitrary
         , ConstBool <$> arbitrary
         ]
-data SimpleType = Number | String | Bool | Array | Code | Nil | HashMap
+data SimpleType = Number | String | Bool | Array | Code | Nil | HashMap | Config | Control | DiaryRecord | Display | Group | Location | Object | ScriptHandle | Side | StructuredText | Task | TeamMember
     deriving (Ord, Eq, Show, Bounded, Enum)
 
 simpleTypeToString :: SimpleType -> String
-simpleTypeToString String  = "string"
-simpleTypeToString Number  = "num"
-simpleTypeToString Array   = "array"
-simpleTypeToString HashMap = "hashmap"
-simpleTypeToString Bool    = "bool"
-simpleTypeToString Code    = "code"
-simpleTypeToString Nil     = "nil"
+simpleTypeToString String         = "string"
+simpleTypeToString Number         = "num"
+simpleTypeToString Array          = "array"
+simpleTypeToString HashMap        = "hashmap"
+simpleTypeToString Bool           = "bool"
+simpleTypeToString Code           = "code"
+simpleTypeToString Nil            = "nil"
+simpleTypeToString Config         = "config"
+simpleTypeToString Control        = "control"
+simpleTypeToString DiaryRecord    = "diaryRecord"
+simpleTypeToString Display        = "display"
+simpleTypeToString Group          = "group"
+simpleTypeToString Location       = "location"
+simpleTypeToString Object         = "object"
+simpleTypeToString ScriptHandle   = "scriptHandle"
+simpleTypeToString Side           = "side"
+simpleTypeToString StructuredText = "structuredText"
+simpleTypeToString Task           = "task"
+simpleTypeToString TeamMember     = "teamMember"
 
 instance Ord a => Semigroup (Type' a) where
     Top <> _                   = Top
