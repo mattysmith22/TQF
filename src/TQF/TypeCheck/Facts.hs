@@ -14,15 +14,13 @@ import           TQF.Resolve (Resolved)
 import           TQF.Type    (GenericType (..), Type')
 
 data IdentKey
-    = DeclKey ResolveableModule VarName
-    | LocalKey VarName Int
+    = DeclKey ResolveableModule VarName Int
     deriving (Ord, Eq, Show)
 
 toIdentKey :: Ident Resolved -> Maybe IdentKey
 toIdentKey (Ident idnt []) = Just $ toIdentKey' idnt
     where
-            toIdentKey' ModLIdentDecl{..}  = DeclKey lIdentModule lIdentName
-            toIdentKey' ModLIdentLocal{..} = LocalKey lIdentName lIdentId
+        toIdentKey' ModLIdentDecl{..} = DeclKey lIdentModule lIdentName lIdentId
 toIdentKey (Ident _ _) = Nothing
 
 newtype Facts = Facts

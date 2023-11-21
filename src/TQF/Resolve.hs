@@ -97,6 +97,7 @@ identForDecl mod env FunctionDecl{..} = do
                 $ Type.code ( unAnnot <$> args) (unAnnot ret)
             , lIdentKind = ValueKind
             , lIdentSQFName = sqfName
+            , lIdentId = -1
             }
 identForDecl mod env VariableDecl{..} = do
     typ <- resolveType env variableType
@@ -107,6 +108,7 @@ identForDecl mod env VariableDecl{..} = do
             , lIdentType = Type.GenericType [] $ unAnnot typ
             , lIdentKind = ValueKind
             , lIdentSQFName = sqfName
+            , lIdentId = -1
             }
 identForDecl _ env TypeDecl{..} = do
     env' <- addTypeParams typeParams env
@@ -122,6 +124,7 @@ identForDecl mod env CommandDecl{..} = do
             , lIdentType = Type.GenericType (unTypeName . unAnnot <$> commandTypeParams) $ Type.code (unAnnot <$> args) $ unAnnot ret
             , lIdentKind = toKind args
             , lIdentSQFName = commandSQF
+            , lIdentId = -1
             }
     where
         toKind :: [a] -> IdentKind
@@ -138,6 +141,7 @@ identForDecl mod env ExternalFunctionDecl{..} = do
             , lIdentType = Type.GenericType (unTypeName . unAnnot <$> functionTypeParams) $ Type.code (unAnnot <$> args) $ unAnnot ret
             , lIdentKind = ValueKind
             , lIdentSQFName = functionSQFName
+            , lIdentId = -1
             }
 identForDecl mod env ExternalVariableDecl{..} = do
     typ <- resolveType env variableType
@@ -147,6 +151,7 @@ identForDecl mod env ExternalVariableDecl{..} = do
             , lIdentType = Type.GenericType [] $ unAnnot typ
             , lIdentKind = ValueKind
             , lIdentSQFName = variableSQFName
+            , lIdentId = -1
             }
 
 resolveDeclaration :: Environment -> Either (Annot Type.GenericType) (Annot ModLIdentDecl) -> Declaration Parsed -> Either EnvError (Declaration Resolved)
@@ -225,8 +230,9 @@ addTypeArgsToEnv :: [Annot TypeName] -> Environment -> Either EnvError Environme
 addTypeArgsToEnv typeArgs env = foldrM (\x -> envAdd (UIdent [] <$> x) $ Type.GenericType [] $ Type.extra $ unTypeName $ unAnnot x) env typeArgs
 
 createLocalDecl :: Environment -> Annot (Type.Type' String) -> VarName -> ModLIdentDecl
-createLocalDecl env typ var = ModLIdentLocal
-            { lIdentName = var
+createLocalDecl env typ var = ModLIdentDecl
+            { lIdentModule = []
+            , lIdentName = var
             , lIdentType = Type.GenericType [] $ unAnnot typ
             , lIdentKind = ValueKind
             , lIdentSQFName = "_" ++ unVarName var
