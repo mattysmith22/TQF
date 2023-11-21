@@ -2,36 +2,49 @@
 {-# LANGUAGE GADTs           #-}
 {-# LANGUAGE RecordWildCards #-}
 module TQF.CodeGen
-    ( codeGen
+    ( GeneratedSQF(..)
+    , codeGen
+    , toScript
     -- * Code Generation notes
     -- $codeblock-nil-suffix
     ) where
 
+import           Data.Maybe
 import           SQF.AST           (SQF, SQFType (..))
 import qualified SQF.AST           as SQF
 import           TQF.AST
 import           TQF.AST.Annotated
-import           TQF.Resolve       (LValue (..), Resolved)
+import           TQF.Resolve       (LValue (..), Resolved, sqfNameForFunction)
 
-codeGen :: Module Resolved -> [SQF 'SStmt]
-codeGen Module{..} = concatMap codeGenDecl moduleDeclarations
+toScript :: GeneratedSQF -> [SQF 'SStmt]
+toScript GeneratedSQF{..} = concatMap funcToScript generatedFunctions
+    where
+        funcToScript (name, body)= let
+            functionPath = sqfNameForFunction generatedModule name
+            in [SQF.Assign SQF.NoPrivate functionPath $ SQF.CodeBlock body]
 
-codeGenDecl :: Declaration Resolved -> [SQF 'SStmt]
-codeGenDecl decl = unAnnot $ codeGenDecl' <$> decl
+data GeneratedSQF = GeneratedSQF
+    { generatedModule    :: ResolveableModule
+    , generatedFunctions :: [(VarName, [SQF 'SStmt])]
+    }
 
-codeGenDecl' :: Declaration_ Resolved -> [SQF 'SStmt]
-codeGenDecl' FunctionDecl{..} = let
-    functionPath = lIdentSQFName $ unAnnot functionName
-    paramsStatement = SQF.UnOp "params" $ SQF.Array $ fmap (SQF.StringLit . lIdentSQFName . unAnnot . snd) functionArguments
-    in [SQF.Assign SQF.NoPrivate functionPath $ codeGenCodeBlock' [paramsStatement] functionContent]
-codeGenDecl' _ = []
+codeGen :: Module Resolved -> GeneratedSQF
+codeGen Module{..} = GeneratedSQF moduleName (mapMaybe codeGenDecl moduleDeclarations)
+    where
+        codeGenDecl :: Declaration Resolved -> Maybe (VarName, [SQF 'SStmt])
+        codeGenDecl decl = unAnnot $ codeGenDecl' <$> decl
+
+        codeGenDecl' :: Declaration_ Resolved -> Maybe (VarName, [SQF 'SStmt])
+        codeGenDecl' FunctionDecl{..} = let
+            paramsStatement = SQF.UnOp "params" $ SQF.Array $ fmap (SQF.StringLit . lIdentSQFName . unAnnot . snd) functionArguments
+            in Just (lIdentName $ unAnnot functionName, paramsStatement : codeGenCodeBlock' functionContent)
+        codeGenDecl' _ = Nothing
 
 codeGenCodeBlock :: [Statement Resolved] -> SQF 'SExpr
-codeGenCodeBlock = codeGenCodeBlock' []
+codeGenCodeBlock = SQF.CodeBlock . codeGenCodeBlock'
 
-codeGenCodeBlock' :: [SQF 'SStmt] -> [Statement Resolved] -> SQF 'SExpr
-codeGenCodeBlock' prefix [] = SQF.CodeBlock prefix
-codeGenCodeBlock' prefix xs = SQF.CodeBlock $ prefix ++ convertedStmts ++ nilSuffix
+codeGenCodeBlock' :: [Statement Resolved] -> [SQF 'SStmt]
+codeGenCodeBlock' xs = convertedStmts ++ nilSuffix
     where
         needsNilSuffix SQF.Assign{} = True
         needsNilSuffix _            = False

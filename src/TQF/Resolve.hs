@@ -6,6 +6,7 @@ module TQF.Resolve
     , resolveGenericType
     , Resolved
     , LValue(..)
+    , sqfNameForFunction
     ) where
 
 import           Control.Arrow
@@ -89,7 +90,7 @@ identForDecl mod env FunctionDecl{..} = do
     env' <- addTypeParams functionTypeParams env
     ret <- resolveType env' functionType
     args <- traverse (resolveType env' . fst) functionArguments
-    let sqfName = intercalate "_" (unTypeName <$> mod) ++ "_fnc_" ++ unVarName (unAnnot functionName)
+    let sqfName = sqfNameForFunction mod (unAnnot functionName)
     return $ Right $ (functionName,) $ Annot (pos functionName) ModLIdentDecl
             { lIdentModule = mod
             , lIdentName = unAnnot functionName
@@ -337,3 +338,6 @@ resolveGenericType r (Type.GenericType argNames val) args = let
     env' = Map.fromList $ zip argNames args
     lookupF x = note (Annot r $ UIdent [] $ TypeName x) $ Map.lookup x env'
     in Type.resolveType lookupF val
+
+sqfNameForFunction :: ResolveableModule -> VarName -> String
+sqfNameForFunction mod name = intercalate "_" (unTypeName <$> mod) ++ "_fnc_" ++ unVarName name

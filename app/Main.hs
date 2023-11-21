@@ -50,7 +50,7 @@ main = do
       when printParsed $ putStrLn "Parsed:" >> pPrint (either error id parsedModule)
       when printResolved $ putStrLn "Resolved" >> pPrint (either error id resolvedModule)
 
-      putStrLn $ SQF.prettyPrint $ optimiseCommandCall <$> CodeGen.codeGen (either error id typeCheckedModule)
+      putStrLn $ SQF.prettyPrint $ fmap optimiseCommandCall $ CodeGen.toScript $ CodeGen.codeGen (either error id typeCheckedModule)
 
 splitModule :: String -> Maybe ResolveableModule
 splitModule = mapM readTypeName . splitOn "."
