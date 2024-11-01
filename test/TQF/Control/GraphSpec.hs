@@ -7,17 +7,17 @@ import           Control.Monad.STM
 import qualified Data.Array                  as Array
 import           Data.Graph
 import           Data.List
-import           System.Timeout
+--import           System.Timeout
 import           Test.Hspec
 import           TQF.Control.Graph
 
 -- The TVar logs every time a node is added to, so we can use it to check whether sharing occurs
-generateTestNode :: Graph -> IO (DependencyGraph Int (Tree Int) -> Int -> IO (Tree Int), TVar [Int])
+generateTestNode :: Graph -> IO (GraphContext Int (Tree Int) -> Int -> IO (Tree Int), TVar [Int])
 generateTestNode g = do
     var <- newTVarIO []
-    let f dg inp = do
+    let f ctx inp = do
             let deps = g Array.! inp
-            subResults <- mapM (requestNode dg) deps >>= mapM readNode
+            subResults <- mapM (requestNodeCtx ctx) deps >>= mapM readNode
             atomically $ modifyTVar var (inp:)
             return $ Node inp subResults
     return (f, var)
@@ -50,7 +50,7 @@ spec = do
         actions <- sort <$> readTVarIO tvar
         ress `shouldBe` [Node 0 [Node 2 []], Node 1 [Node 2 []]]
         actions `shouldBe` [0,1,2] -- If sharing had failed there would be two 2s
-    xit "Should be able to detect cycles" $ do
+    it "Should be able to detect cycles" $ do
         let g = Array.array (0,1) [(0,[1]), (1,[0])]
         (f, _) <- generateTestNode g
         dg <- dependencyGraph f
