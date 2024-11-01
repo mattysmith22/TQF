@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bb4e6f2e85994975badefaf17885fbc108e517aa68b6c0f6fe3b2dd6a7244522
+-- hash: 4a47538ba2c4158a519ead4e5b12ed1131950bbc9bfbeb85dae448f0dc30004c
 
 name:           TQF
 version:        0.1.0.0
@@ -36,6 +36,7 @@ library
       TQF.AST.Annotated
       TQF.CodeGen
       TQF.CodeGen.Optimiser
+      TQF.Control.Graph
       TQF.Lexer
       TQF.Parser
       TQF.Resolve
@@ -71,6 +72,7 @@ library
     , recursion-schemes
     , safe
     , split
+    , stm
     , transformers
   default-language: Haskell2010
 
@@ -102,6 +104,7 @@ executable TQF-exe
     , recursion-schemes
     , safe
     , split
+    , stm
     , transformers
   default-language: Haskell2010
 
@@ -111,6 +114,7 @@ test-suite TQF-test
   other-modules:
       Data.ZipSpec
       Helpers
+      TQF.Control.GraphSpec
       TQF.IntegrationSpec
       TQF.LexerSpec
       TQF.ParserSpec
@@ -139,5 +143,6 @@ test-suite TQF-test
     , recursion-schemes
     , safe
     , split
+    , stm
     , transformers
   default-language: Haskell2010
