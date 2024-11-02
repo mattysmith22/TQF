@@ -7,7 +7,7 @@ import           Control.Monad.STM
 import qualified Data.Array                  as Array
 import           Data.Graph
 import           Data.List
---import           System.Timeout
+import           System.Timeout
 import           Test.Hspec
 import           TQF.Control.Graph
 
