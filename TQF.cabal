@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4a47538ba2c4158a519ead4e5b12ed1131950bbc9bfbeb85dae448f0dc30004c
+-- hash: 195cff49ebecaa71e335b0fd0d9da48e016454552a6d16c5a4d5b05fddb6b1e3
 
 name:           TQF
 version:        0.1.0.0
@@ -31,6 +31,7 @@ library
       Data.Zip
       SQF.AST
       SQF.Commands
+      SQF.FunctionConfig
       TQF
       TQF.AST
       TQF.AST.Annotated
@@ -114,6 +115,7 @@ test-suite TQF-test
   other-modules:
       Data.ZipSpec
       Helpers
+      SQF.FunctionConfigSpec
       TQF.Control.GraphSpec
       TQF.IntegrationSpec
       TQF.LexerSpec
