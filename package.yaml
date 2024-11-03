@@ -36,6 +36,7 @@ dependencies:
 - data-fix
 - stm
 - dir-traverse
+- directory
 
 build-tools:
 - alex

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 13dea696c14f931afa98a08839f7de13e9a0338758127bd85d0feacc11d8114b
+-- hash: 294059c7f344d14852eff6857db28ef588c5f8088cc2428f1c40aa7175b057f4
 
 name:           TQF
 version:        0.1.0.0
@@ -68,6 +68,7 @@ library
     , containers
     , data-fix
     , dir-traverse
+    , directory
     , errors
     , extra
     , filepath
@@ -98,6 +99,7 @@ executable TQF-exe
     , containers
     , data-fix
     , dir-traverse
+    , directory
     , errors
     , extra
     , filepath
@@ -137,6 +139,7 @@ test-suite TQF-test
     , containers
     , data-fix
     , dir-traverse
+    , directory
     , errors
     , extra
     , filepath
