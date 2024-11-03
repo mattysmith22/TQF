@@ -31,7 +31,7 @@ createTestCase fp
     compilePath fp `shouldThrow` ((expectedError `isInfixOf`) . (displayException :: SomeException -> String))
   | otherwise = it (testName fp) $ do
     resolved <- compilePath fp
-    let gen = SQF.prettyPrint $ fmap optimiseCommandCall $ CodeGen.toScript $ CodeGen.codeGen resolved
+    let gen = SQF.prettyPrint $ CodeGen.toScript $ Optimiser.runOptimisations $ CodeGen.codeGen resolved
     expected <- readFile (fp -<.> "sqf")
     gen `shouldBe` expected
   where

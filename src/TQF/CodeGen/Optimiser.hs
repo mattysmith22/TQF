@@ -1,15 +1,23 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs     #-}
 module TQF.CodeGen.Optimiser
-    ( optimiseCommandCall
+    ( runOptimisations
     ) where
 
-import           Data.Maybe (fromMaybe)
+import           Control.Arrow
+import           Data.Maybe    (fromMaybe)
+import           Safe          (atMay)
 import           SQF.AST
-import           Safe       (atMay)
+import           TQF.CodeGen
 
 nil :: SQF 'SExpr
 nil = NulOp "nil"
+
+runOptimisations :: GeneratedSQF -> GeneratedSQF
+runOptimisations g = g
+    { generatedFunctions = second (fmap optimiseCommandCall)
+        <$> generatedFunctions g
+    }
 
 optimiseCommandCall :: SQF a -> SQF a
 optimiseCommandCall (Assign s i e) = Assign s i $ optimiseCommandCall e

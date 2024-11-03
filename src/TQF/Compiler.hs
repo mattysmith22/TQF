@@ -72,5 +72,5 @@ runCompiler env@CompilerEnv{..} = do
         -> IO CompileModuleResult
     compileNode _env _cfg moduleToFile graphCtx mod = do
         res <- compileModule moduleToFile (\_ dep -> compiledModule <$> (requestNodeCtx graphCtx dep >>= readNode)) mod
-        writeLog $ SQF.prettyPrint $ fmap Optimiser.optimiseCommandCall $ CodeGen.toScript $ CodeGen.codeGen (either error id (typeCheckedModule res))
+        writeLog $ SQF.prettyPrint $ CodeGen.toScript $ Optimiser.runOptimisations $ CodeGen.codeGen (either error id (typeCheckedModule res))
         return res
