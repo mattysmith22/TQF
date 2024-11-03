@@ -1,0 +1,37 @@
+name: Build and Upload Haskell Stack Program
+
+on:
+  push:
+    branches:
+      - master  # Change to your default branch if it's not main
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        include:
+        - os: ubuntu-latest
+          artifact-name: tqf-linux
+        - os: windows-latest
+          artifact-name: tqf-windows
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v2
+
+      - name: Set up Haskell Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Build
+        run: stack build --copy-bins --local-bin-path ./bin
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{matrix.artifact-name}} 
+          path: ./bin/*  # Adjust if you want to target specific binaries
