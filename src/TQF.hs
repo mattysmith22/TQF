@@ -1,9 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards   #-}
 module TQF
-  ( pathForModule
+  ( pathToModule
+  , moduleToPath
   , compileModule
+  , trivialResolver
   , CompileResult(..)
+  , ResolveableModule
   ) where
 
 import           Control.Monad.Trans.Except
@@ -26,26 +29,34 @@ data CompileResult = CompileResult
   , compiledModule    :: Either String CompiledModule
   }
 
-class ModuleIdentifier a where
-  toModFilePath :: (ResolveableModule -> FilePath) -> a -> FilePath
-  toModIdentifier :: a -> ResolveableModule
-instance ModuleIdentifier FilePath where
-  toModFilePath _ = id
-  toModIdentifier = const [TypeName "<LIVE>"]
-instance ModuleIdentifier ResolveableModule where
-  toModFilePath x = x
-  toModIdentifier = id
+trivialResolver
+    :: (ResolveableModule -> FilePath)
+    -> ResolveableModule
+    -> ResolveableModule
+    -> IO (Either String CompiledModule)
+trivialResolver = trivialResolver' []
+    where
+    trivialResolver'
+        :: [ResolveableModule]
+        -> (ResolveableModule -> FilePath)
+        -> ResolveableModule
+        -> ResolveableModule
+        -> IO (Either String CompiledModule)
+    trivialResolver' path pathResolver curModule nextModule
+        | nextModule `elem` path
+            = error $ "Cyclic import: " ++
+                intercalate ":" (prettyPrint <$> takeWhile (/=nextModule) path)
+        | otherwise
+            = compiledModule
+            <$> compileModule pathResolver (trivialResolver' (curModule:path) pathResolver) nextModule
 
 compileModule
-    :: ModuleIdentifier path
-    => (ResolveableModule -> FilePath)
-    -> [ResolveableModule]
-    -> path
+    :: (ResolveableModule -> FilePath)
+    -> (ResolveableModule -> ResolveableModule -> IO (Either String CompiledModule))
+    -> ResolveableModule
     -> IO CompileResult
-compileModule pathForModule evalPath moduleName
-  | moduleId `elem` evalPath = error $ "Cyclic import: " ++ intercalate ":" (prettyPrint <$> takeWhile (/=moduleId) evalPath)
-  | otherwise = do
-    text <- readFile $ toModFilePath pathForModule moduleName
+compileModule pathResolver resolver moduleName = do
+    text <- readFile $ pathResolver moduleName
     let lexedModule = Lexer.runAlex text Lexer.listTokens
     let parsedModule = Lexer.runAlex text Parser.parse
     resolveResult <- runExceptT $ (ExceptT . runResolver) =<< ExceptT (return parsedModule)
@@ -56,13 +67,14 @@ compileModule pathForModule evalPath moduleName
     let compiledModule = typeCheckedModule *> compiledModule'
     return CompileResult{..}
   where
-    moduleId = toModIdentifier moduleName
-
     runResolver ::  Module Parsed -> IO (Either String (Module Resolved, CompiledModule))
     runResolver
       = fmap (first prettyPrint =<<)
       . runExceptT
-      . resolveModule (ExceptT . fmap compiledModule . compileModule pathForModule (moduleId:evalPath))
+      . resolveModule (ExceptT . resolver moduleName)
 
-pathForModule :: ResolveableModule -> FilePath
-pathForModule = (<.> ".tqf") . joinPath . fmap unTypeName
+pathToModule :: FilePath -> FilePath -> ResolveableModule
+pathToModule tqfDir = fmap TypeName . splitDirectories . dropExtension . makeRelative tqfDir
+
+moduleToPath :: FilePath -> ResolveableModule -> FilePath
+moduleToPath tqfDir = (tqfDir </>) . (<.> "tqf") . joinPath . fmap unTypeName

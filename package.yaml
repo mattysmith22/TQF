@@ -35,6 +35,7 @@ dependencies:
 - recursion-schemes
 - data-fix
 - stm
+- dir-traverse
 
 build-tools:
 - alex
@@ -59,10 +60,6 @@ executables:
     - -Werror
     dependencies:
     - TQF
-    - pretty-simple
-    - optparse-applicative
-    - filemanip
-    - pretty-simple
 
 tests:
   TQF-test:

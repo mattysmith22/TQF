@@ -10,12 +10,12 @@ import qualified SQF.AST                    as SQF
 import           System.Directory.Extra     (doesDirectoryExist, doesFileExist)
 import           System.Directory.Recursive
 import           System.FilePath
+import           Test.Hspec
 import           TQF
 import           TQF.AST
 import qualified TQF.CodeGen                as CodeGen
 import           TQF.CodeGen.Optimiser      as Optimiser
 import           TQF.Resolve
-import           Test.Hspec
 
 spec :: Spec
 spec = parallel $ do
@@ -39,4 +39,8 @@ createTestCase fp
     testName = snd . splitFileName . snd . splitFileName
 
     compilePath :: FilePath -> IO (Module Resolved)
-    compilePath = either errorIO return . typeCheckedModule <=< compileModule (("test"</>).("integration"</>).pathForModule) []
+    compilePath = either errorIO return . typeCheckedModule <=< compileModule pathResolver (trivialResolver pathResolver) . pathToModule tqfDir
+
+    tqfDir = "test"</>"integration"
+
+    pathResolver = moduleToPath tqfDir
