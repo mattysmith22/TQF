@@ -3,6 +3,10 @@
   "displayName": "TQF",
   "description": "TQF scripting language support",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mattysmith22/TQF.git"
+  },
   "engines": {
     "vscode": "^1.73.0"
   },
